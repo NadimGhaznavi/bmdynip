@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-09-26 @ 14:42
+
+### Added
+
+- Document root's GoDaddy PAT setup, the distinction from dan's OAuth login, authentication checks, and token rotation in a dedicated guide.
+
 ## [0.2.0] - 2026-09-26 @ 14:20
 
 ### Summary

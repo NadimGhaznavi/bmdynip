@@ -12,6 +12,7 @@ layout: single
 
 ## User Guides
 
+- [Root GoDaddy authentication]({% link pages/root-authentication.md %})
 - [Installation]({% link pages/installation.md %})
 - [Configuration]({% link pages/configuration.md %})
 - [Running and monitoring]({% link pages/running.md %})
