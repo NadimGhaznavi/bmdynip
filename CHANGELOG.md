@@ -16,6 +16,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Summary
+
+Add the cron-driven public IPv4 updater for configurable hostnames, with root
+installation and uninstall scripts that preserve configuration and data.
+
+### Added
+
+- Configure one domain and a hostname list, empty by default; no application hostnames are hardcoded.
+- Add public-IP discovery, DNS record entities, and the update activity with GoDaddy CLI and saved-state interfaces.
+- Add root installation under `/opt/prod/mydynip` and a cron job every five minutes.
+- Read the root-owned GoDaddy PAT from `/etc/mydynip/auto.env` with mode `0600`.
+- Preserve saved state on DNS failure, skip overlapping runs, and refresh records when configuration changes.
+- Document installation, configuration, logging, and uninstall behavior.
+- Include production credential setup and installation verification commands in the user guides.
+- Add the GoDaddy CLI path as `DMyDynIP.GODADDY_CLI`.
+- Add the ipify and ifconfig.me URLs as `DMyDynIP.PUBLIC_IP_URLS`.
+- Define the five-minute cron schedule as `DMyDynIP.CRON_SCHEDULE`.
+
+### Changed
+
+- Move configuration and running instructions into separate guides, linked from installation and the documentation index.
+- Move uninstall instructions into their own guide.
+
 ## [0.1.0] - 2026-09-26 @ 13:35
 
 ### Summary
