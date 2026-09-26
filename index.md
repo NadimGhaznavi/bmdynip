@@ -9,3 +9,10 @@ layout: single
 ## Developer Guidelines
 
 - [Coding Guidelines]({% link pages/coding-guidelines.md %})
+
+## User Guides
+
+- [Installation]({% link pages/installation.md %})
+- [Configuration]({% link pages/configuration.md %})
+- [Running and monitoring]({% link pages/running.md %})
+- [Uninstall]({% link pages/uninstall.md %})
