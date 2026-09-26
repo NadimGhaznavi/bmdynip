@@ -30,6 +30,11 @@ class ReleaseTests(unittest.TestCase):
             destination = self.repo / name
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / name, destination)
+        # Start every fixture before its first release, independently of this checkout's version.
+        (self.repo / CONSTANTS).write_text(
+            'from typing import Final\n\nclass DMyDynIP:\n    VERSION: Final[str] = "0.0.1"\n')
+        (self.repo / "CHANGELOG.md").write_text(
+            '# Changelog\n\n## [Unreleased]\n\n### Summary\n\nFirst feature.\n')
         self.git("add", ".")
         self.git("commit", "-m", "Initial project")
         self.git("branch", "dev")
