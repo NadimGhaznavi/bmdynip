@@ -20,26 +20,9 @@ The host needs Linux, Python 3.10 or newer, curl, logger, a running cron daemon,
 and `/opt/prod/godaddy-cli/gddy`. No Python dependencies or virtual environment
 are needed.
 
-Place a GoDaddy PAT with DNS access in `/etc/mydynip/auto.env`, owned by root
-with permissions `0600`. On a new host, prepare and edit the file:
-
-```sh
-install -d -m 0700 /etc/mydynip
-(umask 077; touch /etc/mydynip/auto.env)
-chown root:root /etc/mydynip/auto.env
-chmod 0600 /etc/mydynip/auto.env
-vi /etc/mydynip/auto.env
-```
-
-The file contains one unquoted assignment:
-
-```text
-GDDY_PAT=gd_pat_your_token_here
-```
-
-The token is passed to `gddy` through its environment. It is not stored in the
-repository, executable, cron file, or command arguments. The installer requires
-this credential file and preserves it.
+Complete [root GoDaddy authentication]({% link pages/root-authentication.md %})
+first. The installer requires `/etc/mydynip/auto.env`, owned by root with mode
+`0600`, and preserves it on reinstall.
 
 From the checkout, as root:
 
