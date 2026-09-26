@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-26 @ 14:20
+
 ### Summary
 
 Add the cron-driven public IPv4 updater for configurable hostnames, with root
