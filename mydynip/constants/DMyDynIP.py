@@ -4,7 +4,7 @@ from typing import Final
 
 
 class DMyDynIP:
-    VERSION: Final[str] = "0.2.0"
+    VERSION: Final[str] = "1.0.0"
     INSTALL_DIR: Final[str] = "/opt/prod/mydynip"
     CREDENTIALS_FILE: Final[str] = "/etc/mydynip/auto.env"
     CRON_FILE: Final[str] = "/etc/cron.d/mydynip"
