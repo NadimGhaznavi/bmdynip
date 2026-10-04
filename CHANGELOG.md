@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-10-04 @ 15:05
+
 ### Fixed
 
 - Start the Web UI on port 49700 during installation and enable it at boot.
