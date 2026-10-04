@@ -9,6 +9,11 @@ from bmdynip.entity.DnsRecord import DnsRecord
 
 class Configuration:
     @staticmethod
+    def domain(path: Path) -> str:
+        Configuration.load(path)
+        return json.loads(path.read_text())['domain']
+
+    @staticmethod
     def load(path: Path) -> tuple[DnsRecord, ...]:
         data = json.loads(path.read_text())
         if not isinstance(data, dict) or set(data) != {"domain", "hostnames"}:

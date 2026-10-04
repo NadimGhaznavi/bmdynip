@@ -240,7 +240,9 @@ class InstallationTests(TemporaryFiles):
             unittest.mock.call("restart", self.service.name),
             unittest.mock.call("is-active", "--quiet", self.service.name),
         ])
-        self.assertIn(f"active on port {DBMDynIP.WEB_PORT}", output.getvalue())
+        self.assertEqual(output.getvalue(),
+                         f"BMDynIP Web UI: active on port {DBMDynIP.WEB_PORT} "
+                         f"(listening on {DBMDynIP.WEB_HOST})\n")
         request = self.opener.open.call_args.args[0]
         self.assertEqual(request.full_url, f"http://127.0.0.1:{DBMDynIP.WEB_PORT}/")
         self.assertEqual(request.get_method(), "HEAD")

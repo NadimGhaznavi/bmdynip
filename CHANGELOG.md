@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-04 @ 19:58
+
+### Added
+
+- Add the MariaDB schema for the CWM WAN connection model, per-record change requests,
+  and managed DNS records.
+
+### Fixed
+
+- Show the Web UI listening address in status output instead of the localhost readiness URL.
+
 ## [1.0.3] - 2026-10-04 @ 15:05
 
 ### Fixed
