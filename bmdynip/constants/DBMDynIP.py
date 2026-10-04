@@ -5,7 +5,7 @@ from typing import Final
 
 class DBMDynIP:
     VERSION: Final[str] = "1.0.0"
-    WEB_HOST: Final[str] = "127.0.0.1"
+    WEB_HOST: Final[str] = "0.0.0.0"
     WEB_PORT: Final[int] = 49700
     WEB_REQUEST_TIMEOUT: Final[int] = 15
     INSTALL_DIR: Final[str] = "/opt/prod/bmdynip"
