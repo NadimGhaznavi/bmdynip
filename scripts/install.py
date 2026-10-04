@@ -1,6 +1,7 @@
 """Install or remove BMDynIP's executable and cron job."""
 
 import argparse
+import getpass
 import os
 from pathlib import Path
 import shutil
@@ -17,14 +18,32 @@ from bmdynip.interface.Credentials import Credentials
 from bmdynip.interface.IpState import IpState
 
 
+def read_token() -> str:
+    token = os.environ.get("GDDY_PAT")
+    if token:
+        return token
+    source = Path(DBMDynIP.ROOT_CREDENTIALS_FILE)
+    if source.exists() or source.is_symlink():
+        return Credentials.import_token(source)
+    if not sys.stdin.isatty():
+        raise ValueError("Credentials are missing. Run installation in a terminal to enter a "
+                         "GoDaddy PAT, or supply GDDY_PAT in the environment.")
+    print("Generate a GoDaddy PAT named bmdynip with domains.dns:update permission at")
+    print("https://developer.godaddy.com/personal-access-token")
+    try:
+        return getpass.getpass("GoDaddy PAT (hidden): ")
+    except EOFError:
+        raise ValueError("No GoDaddy PAT was supplied.") from None
+
+
 def install() -> None:
     for executable in ("/usr/bin/python3", "/usr/bin/curl", "/usr/bin/logger", DBMDynIP.GODADDY_CLI):
         if not os.access(executable, os.X_OK):
             raise ValueError(f"Required executable is missing: {executable}")
-    Credentials.load(Path(DBMDynIP.CREDENTIALS_FILE))
     root = Path(DBMDynIP.INSTALL_DIR)
     config = root / "conf" / "bmdynip.json"
     Configuration.load(config if config.exists() else REPOSITORY / "conf" / "bmdynip.json")
+    Credentials.provision(Path(DBMDynIP.CREDENTIALS_FILE), read_token)
     for name in ("bin", "conf", "data"):
         (root / name).mkdir(parents=True, exist_ok=True)
         (root / name).chmod(0o700 if name != "bin" else 0o755)
