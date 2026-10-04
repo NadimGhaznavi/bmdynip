@@ -15,7 +15,7 @@ To restart it from the checkout as root:
 The command checks that the service is active and HTTP responds, then prints:
 
 ```text
-BMDynIP Web UI: active on port 49700 (http://127.0.0.1:49700/)
+BMDynIP Web UI: active on port 49700 (listening on 0.0.0.0)
 ```
 
 View service logs with `journalctl -u bmdynip-web.service`.

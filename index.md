@@ -12,6 +12,7 @@ BM stands for [Bear & Moose](https://osoyalce.com).
 ## Developer Guidelines
 
 - [Coding Guidelines]({% link pages/coding-guidelines.md %})
+- [Database schema]({{ site.baseurl }}{% link pages/database-schema.md %})
 
 ## User Guides
 

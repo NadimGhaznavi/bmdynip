@@ -1,11 +1,21 @@
-"""Run the BMDynIP UI preview without DNS or updater integration."""
+"""Serve BMDynIP controls backed by MariaDB."""
 
 import argparse
+import json
+import re
+from urllib.parse import urlsplit
+
+from pymysql import MySQLError, IntegrityError
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.resources import files
 from pathlib import Path
 
 from bmdynip.constants.DBMDynIP import DBMDynIP
+from bmdynip.app.database import open_database
+from bmdynip.interface.Configuration import Configuration
+from bmdynip.interface.DnsRecordDb import DnsRecordDb
+from bmdynip.interface.IpState import IpState
+from bmdynip.interface.UiDb import UiDb
 
 
 SERVER_DIR = files("bmdynip.server")
@@ -16,22 +26,110 @@ ASSETS = {
     "/": (SERVER_DIR / "static/index.html", "text/html; charset=utf-8"),
     "/static/style.css": (SERVER_DIR / "static/style.css", "text/css; charset=utf-8"),
     "/static/ui.js": (SERVER_DIR / "static/ui.js", "text/javascript; charset=utf-8"),
-    "/static/demo.js": (SERVER_DIR / "static/demo.js", "text/javascript; charset=utf-8"),
+    "/static/api.js": (SERVER_DIR / "static/api.js", "text/javascript; charset=utf-8"),
     "/pages/images/bmdynip-logo.png": (
         LOGO, "image/png"),
 }
 
 
-class PreviewHandler(BaseHTTPRequestHandler):
+class ControlHandler(BaseHTTPRequestHandler):
     def setup(self) -> None:
         super().setup()
         self.connection.settimeout(DBMDynIP.WEB_REQUEST_TIMEOUT)
 
     def do_GET(self) -> None:
-        self.serve()
+        if self.path == '/api/snapshot':
+            self.api('snapshot')
+        elif self.path == '/ready':
+            self.api('ready')
+        else:
+            self.serve()
 
     def do_HEAD(self) -> None:
-        self.serve()
+        if self.path == '/ready':
+            self.api('ready')
+        else:
+            self.serve()
+
+    def do_POST(self) -> None:
+        if self.path != '/api/records':
+            self.respond(404, {'error': 'Not found.'})
+            return
+        self.api('add')
+
+    def do_DELETE(self) -> None:
+        match = re.fullmatch(r'/api/records/([1-9][0-9]*)', self.path)
+        if match is None:
+            self.respond(404, {'error': 'Not found.'})
+            return
+        self.api('remove', int(match[1]))
+
+    def respond(self, status, value):
+        body = json.dumps(value).encode('utf-8')
+        self.send_response(status)
+        self.send_header('Content-Type', 'application/json; charset=utf-8')
+        self.send_header('Content-Length', str(len(body)))
+        self.send_header('Cache-Control', 'no-store')
+        self.send_header('X-Content-Type-Options', 'nosniff')
+        self.end_headers()
+        if self.command != 'HEAD':
+            self.wfile.write(body)
+
+    def api(self, operation, identity=None):
+        mutating = operation in ('add', 'remove')
+        if mutating:
+            # JSON-only, same-origin writes prevent cross-site browser submissions.
+            origin = self.headers.get('Origin')
+            if ((origin and urlsplit(origin).netloc != self.headers.get('Host'))
+                    or self.headers.get('Sec-Fetch-Site') == 'cross-site'):
+                self.respond(403, {'error': 'Cross-origin writes are not allowed.'})
+                return
+            if self.headers.get('Content-Type') != 'application/json':
+                self.respond(415, {'error': 'Use application/json.'})
+                return
+        try:
+            name = None
+            if operation == 'add':
+                length = int(self.headers.get('Content-Length', '0'))
+                if not 1 <= length <= 1024:
+                    raise ValueError('Invalid request size.')
+                data = json.loads(self.rfile.read(length))
+                if not isinstance(data, dict) or set(data) != {'name'} or not isinstance(data['name'], str):
+                    raise ValueError('Supply a hostname string.')
+                name = data['name']
+            db = self.server.db_factory()
+            try:
+                if operation == 'ready':
+                    db.query('SELECT id FROM DnsRecord LIMIT 1')
+                    value, status = {'ready': True}, 200
+                elif operation == 'snapshot':
+                    value, status = UiDb(db).snapshot(self.server.domain), 200
+                else:
+                    with IpState(self.server.state_directory).lock() as acquired:
+                        if not acquired:
+                            self.respond(409, {'error': 'The updater is running. Try again shortly.'})
+                            return
+                        with db.transaction():
+                            records = DnsRecordDb(db)
+                            if operation == 'add':
+                                value, status = {'id': records.add(self.server.domain, name)}, 201
+                            else:
+                                removed = records.remove(identity)
+                                value, status = ({'removed': True}, 200) if removed else ({'error': 'Record not found.'}, 404)
+                self.respond(status, value)
+            finally:
+                db.close()
+        except IntegrityError as error:
+            if error.args[0] == 1062:
+                self.respond(409, {'error': 'That hostname already exists.'})
+            else:
+                self.respond(503, {'error': 'Database operation failed.'})
+        except MySQLError:
+            self.respond(503, {'error': 'Database unavailable.'})
+        except (ValueError, UnicodeError):
+            self.respond(400, {'error': 'Invalid hostname or request.'})
+        except OSError:
+            self.respond(503, {'error': 'Server configuration unavailable.'})
 
     def serve(self) -> None:
         asset = ASSETS.get(self.path.split("?", 1)[0])
@@ -60,8 +158,11 @@ def main() -> None:
     args = parser.parse_args()
     if not 1 <= args.port <= 65535:
         parser.error("--port must be between 1 and 65535.")
-    with ThreadingHTTPServer((args.host, args.port), PreviewHandler) as server:
-        print(f"BMDynIP UI preview: http://{args.host}:{server.server_port}/", flush=True)
+    with ThreadingHTTPServer((args.host, args.port), ControlHandler) as server:
+        server.db_factory = open_database
+        server.domain = Configuration.domain(Path(DBMDynIP.INSTALL_DIR) / 'conf/bmdynip.json')
+        server.state_directory = Path(DBMDynIP.INSTALL_DIR) / 'data'
+        print(f"BMDynIP Web UI: http://{args.host}:{server.server_port}/", flush=True)
         try:
             server.serve_forever()
         except KeyboardInterrupt:
