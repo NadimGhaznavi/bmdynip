@@ -4,8 +4,8 @@ import json
 import os
 import subprocess
 
-from mydynip.constants.DMyDynIP import DMyDynIP
-from mydynip.entity.DnsRecord import DnsRecord
+from bmdynip.constants.DBMDynIP import DBMDynIP
+from bmdynip.entity.DnsRecord import DnsRecord
 
 
 class GoDaddyCli:
@@ -17,7 +17,7 @@ class GoDaddyCli:
         self._run("add", record, "--data", str(record.address))
 
     def _run(self, action: str, record: DnsRecord, *extra: str) -> None:
-        command = [DMyDynIP.GODADDY_CLI, "dns", action, record.domain,
+        command = [DBMDynIP.GODADDY_CLI, "dns", action, record.domain,
                    "--type", "A", "--name", record.name, *extra,
                    "--output", "json", "--timeout", "60s"]
         result = subprocess.run(

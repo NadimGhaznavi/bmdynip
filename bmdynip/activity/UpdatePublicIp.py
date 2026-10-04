@@ -2,10 +2,10 @@
 
 from dataclasses import replace
 
-from mydynip.entity.DnsRecord import DnsRecord
-from mydynip.interface.GoDaddyCli import GoDaddyCli
-from mydynip.interface.IpState import IpState
-from mydynip.interface.PublicIpService import PublicIpService
+from bmdynip.entity.DnsRecord import DnsRecord
+from bmdynip.interface.GoDaddyCli import GoDaddyCli
+from bmdynip.interface.IpState import IpState
+from bmdynip.interface.PublicIpService import PublicIpService
 
 
 class UpdatePublicIp:

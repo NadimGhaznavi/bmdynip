@@ -1,4 +1,4 @@
-"""An A record managed by MyDynIP."""
+"""An A record managed by BMDynIP."""
 
 from dataclasses import dataclass
 from ipaddress import IPv4Address
