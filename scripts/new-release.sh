@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Create and publish a MyDynIP release: feature -> dev -> main.
+# Create and publish a BMDynIP release: feature -> dev -> main.
 
 set -euo pipefail
 
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
 
-constants_file="mydynip/constants/DMyDynIP.py"
+constants_file="bmdynip/constants/DBMDynIP.py"
 version_number='(0|[1-9][0-9]*)'
 prerelease_identifier='(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)'
 version_pattern="^${version_number}\.${version_number}\.${version_number}(-${prerelease_identifier}(\.${prerelease_identifier})*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$"
@@ -18,8 +18,8 @@ fail() {
 current_version() {
     local value
     value=$(sed -nE 's/^    VERSION: Final\[str\] = "([^"]+)"$/\1/p' "${constants_file}") ||
-        fail "Cannot read the MyDynIP version."
-    [[ ${value} =~ ${version_pattern} ]] || fail "Cannot read a single valid MyDynIP version."
+        fail "Cannot read the BMDynIP version."
+    [[ ${value} =~ ${version_pattern} ]] || fail "Cannot read a single valid BMDynIP version."
     printf '%s\n' "${value}"
 }
 
@@ -51,7 +51,7 @@ Run from a clean feature branch with local dev and main up to date.
 Use a version without a leading v. The next branch defaults to
 feat/maint-<version with patch incremented>.
 
-Updates DMyDynIP.VERSION and CHANGELOG.md, merges through dev to main, tags and
+Updates DBMDynIP.VERSION and CHANGELOG.md, merges through dev to main, tags and
 pushes the release, then creates the next local feature branch.
 EOF
 }
@@ -88,7 +88,7 @@ for branch in dev main; do
     git show-ref --verify --quiet "refs/heads/${branch}" || fail "Missing local ${branch} branch."
 done
 git ls-files --error-unmatch "${constants_file}" CHANGELOG.md >/dev/null ||
-    fail "The MyDynIP version file and CHANGELOG.md must be committed."
+    fail "The BMDynIP version file and CHANGELOG.md must be committed."
 current_version >/dev/null
 [[ $(grep -c '^## \[Unreleased\]$' CHANGELOG.md) == 1 ]] ||
     fail "CHANGELOG.md must contain exactly one ## [Unreleased] heading."

@@ -12,7 +12,7 @@ Run these commands as root on the production host.
 
 ## Configure records
 
-Edit `/opt/prod/mydynip/conf/mydynip.json`:
+Edit `/opt/prod/bmdynip/conf/bmdynip.json`:
 
 ```json
 {

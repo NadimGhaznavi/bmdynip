@@ -6,7 +6,7 @@ from ipaddress import IPv4Address
 import json
 from pathlib import Path
 
-from mydynip.entity.DnsRecord import DnsRecord
+from bmdynip.entity.DnsRecord import DnsRecord
 
 
 class IpState:

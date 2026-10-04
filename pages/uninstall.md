@@ -6,12 +6,12 @@ layout: single
 
 [Documentation index]({% link index.md %})
 
-From your MyDynIP checkout, run as root on the production host:
+From your BMDynIP checkout, run as root on the production host:
 
 ```sh
 ./scripts/uninstall.sh
 ```
 
-This removes `/opt/prod/mydynip/bin/mydynip` and `/etc/cron.d/mydynip`.
-Configuration, saved data, and `/etc/mydynip/auto.env` remain for
+This removes `/opt/prod/bmdynip/bin/bmdynip` and `/etc/cron.d/bmdynip`.
+Configuration, saved data, and `/etc/bmdynip/auto.env` remain for
 [reinstallation]({% link pages/installation.md %}). DNS records are not deleted.

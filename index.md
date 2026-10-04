@@ -4,7 +4,10 @@ author_profile: true
 layout: single
 ---
 
-![MyDynIP Logo](/pages/images/mydynip-logo.png)
+![BMDynIP Logo](/pages/images/bmdynip-logo.png)
+
+BMDynIP is Bear & Moose's local GoDaddy-based dynamic IP service.
+BM stands for [Bear & Moose](https://osoyalce.com).
 
 ## Developer Guidelines
 
@@ -12,6 +15,7 @@ layout: single
 
 ## User Guides
 
+- [Web interface preview]({{ site.baseurl }}{% link pages/web-interface.md %})
 - [Root GoDaddy authentication]({% link pages/root-authentication.md %})
 - [Installation]({% link pages/installation.md %})
 - [Configuration]({% link pages/configuration.md %})

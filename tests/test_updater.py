@@ -9,19 +9,19 @@ import tempfile
 import unittest
 from unittest.mock import Mock, patch
 
-from mydynip.activity.UpdatePublicIp import UpdatePublicIp
-from mydynip.app.main import main
-from mydynip.constants.DMyDynIP import DMyDynIP
-from mydynip.entity.DnsRecord import DnsRecord
-from mydynip.interface.Configuration import Configuration
-from mydynip.interface.Credentials import Credentials
-from mydynip.interface.GoDaddyCli import GoDaddyCli
-from mydynip.interface.IpState import IpState
-from mydynip.interface.PublicIpService import PublicIpService
+from bmdynip.activity.UpdatePublicIp import UpdatePublicIp
+from bmdynip.app.main import main
+from bmdynip.constants.DBMDynIP import DBMDynIP
+from bmdynip.entity.DnsRecord import DnsRecord
+from bmdynip.interface.Configuration import Configuration
+from bmdynip.interface.Credentials import Credentials
+from bmdynip.interface.GoDaddyCli import GoDaddyCli
+from bmdynip.interface.IpState import IpState
+from bmdynip.interface.PublicIpService import PublicIpService
 
 
 ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location("mydynip_installer", ROOT / "scripts/install.py")
+spec = importlib.util.spec_from_file_location("bmdynip_installer", ROOT / "scripts/install.py")
 installer = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(installer)
 IP = IPv4Address("8.8.8.8")
@@ -30,7 +30,7 @@ RECORDS = (DnsRecord("example.com", "api"),)
 
 class TemporaryFiles(unittest.TestCase):
     def setUp(self):
-        directory = tempfile.TemporaryDirectory(prefix="mydynip-test-")
+        directory = tempfile.TemporaryDirectory(prefix="bmdynip-test-")
         self.addCleanup(directory.cleanup)
         self.root = Path(directory.name)
 
@@ -46,7 +46,7 @@ class PublicIpTests(unittest.TestCase):
         with patch("subprocess.run", return_value=Mock(stdout="8.8.8.8\n")) as run:
             self.assertEqual(PublicIpService().current_address(), IP)
         self.assertEqual(run.call_count, 2)
-        for call, url in zip(run.call_args_list, DMyDynIP.PUBLIC_IP_URLS):
+        for call, url in zip(run.call_args_list, DBMDynIP.PUBLIC_IP_URLS):
             self.assertIn("-4", call.args[0])
             self.assertEqual(call.args[0][-1], url)
             self.assertTrue(call.kwargs["check"])
@@ -188,15 +188,15 @@ class BoundaryTests(TemporaryFiles):
     def test_cli_end_to_end_and_failure_exit(self):
         (self.root / "conf").mkdir()
         (self.root / "data").mkdir()
-        (self.root / "conf/mydynip.json").write_text('{"domain":"example.com","hostnames":["api"]}')
+        (self.root / "conf/bmdynip.json").write_text('{"domain":"example.com","hostnames":["api"]}')
         credential = self.credentials()
         outputs = [Mock(stdout="8.8.8.8"), Mock(stdout="8.8.8.8"),
                    Mock(returncode=0, stdout='{"data":{"failed":0,"deleted":1}}'),
                    Mock(returncode=0, stdout='{"data":{"failed":0,"created":1}}')]
-        with patch.object(DMyDynIP, "INSTALL_DIR", str(self.root)), \
-             patch.object(DMyDynIP, "CREDENTIALS_FILE", str(credential)), \
-             patch("mydynip.app.main.os", Mock(geteuid=Mock(return_value=0))), \
-             patch("sys.argv", ["mydynip"]), patch("sys.stdout", new=io.StringIO()), \
+        with patch.object(DBMDynIP, "INSTALL_DIR", str(self.root)), \
+             patch.object(DBMDynIP, "CREDENTIALS_FILE", str(credential)), \
+             patch("bmdynip.app.main.os", Mock(geteuid=Mock(return_value=0))), \
+             patch("sys.argv", ["bmdynip"]), patch("sys.stdout", new=io.StringIO()), \
              patch("sys.stderr", new=io.StringIO()):
             with patch("subprocess.run", side_effect=outputs):
                 self.assertEqual(main(), 0)
@@ -211,19 +211,19 @@ class InstallationTests(TemporaryFiles):
         install_root = self.root / "prod"
         cron = self.root / "cron"
         credentials = self.credentials()
-        with patch.object(DMyDynIP, "INSTALL_DIR", str(install_root)), \
-             patch.object(DMyDynIP, "CRON_FILE", str(cron)), \
-             patch.object(DMyDynIP, "CREDENTIALS_FILE", str(credentials)), \
-             patch.object(DMyDynIP, "GODADDY_CLI", "/usr/bin/true"), \
+        with patch.object(DBMDynIP, "INSTALL_DIR", str(install_root)), \
+             patch.object(DBMDynIP, "CRON_FILE", str(cron)), \
+             patch.object(DBMDynIP, "CREDENTIALS_FILE", str(credentials)), \
+             patch.object(DBMDynIP, "GODADDY_CLI", "/usr/bin/true"), \
              patch("sys.stdout", new=io.StringIO()):
             installer.install()
-            executable = install_root / "bin/mydynip"
+            executable = install_root / "bin/bmdynip"
             output = subprocess.run([str(executable), "--version"], capture_output=True, text=True, check=True)
-            self.assertEqual(output.stdout.strip(), DMyDynIP.VERSION)
-            self.assertIn(f"{DMyDynIP.CRON_SCHEDULE} root {executable}", cron.read_text())
+            self.assertEqual(output.stdout.strip(), DBMDynIP.VERSION)
+            self.assertIn(f"{DBMDynIP.CRON_SCHEDULE} root {executable}", cron.read_text())
             self.assertNotIn("gd_pat", cron.read_text())
             self.assertEqual(cron.stat().st_mode & 0o777, 0o644)
-            config = install_root / "conf/mydynip.json"
+            config = install_root / "conf/bmdynip.json"
             self.assertEqual(config.stat().st_mode & 0o777, 0o600)
             self.assertEqual(Configuration.load(config), ())
             custom_config = '{"domain":"example.com","hostnames":["home","vpn"]}\n'

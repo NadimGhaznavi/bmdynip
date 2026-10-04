@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BMDynIP · Control</title>
+  <link rel="icon" href="/pages/images/bmdynip-logo.png" type="image/png">
+  <link rel="stylesheet" href="/static/style.css">
+  <script type="module" src="/static/ui.js"></script>
+</head>
+<body>
+  <header class="masthead">
+    <a class="brand" href="/">BMDynIP <span>Control</span></a>
+    <div class="masthead-details">
+      <nav aria-label="Main navigation">
+        <a href="#system-status">System status</a>
+        <a href="#hostnames">Hostnames</a>
+        <a href="#activity">Activity</a>
+        <a href="https://bmdynip.osoyalce.com">Documentation</a>
+      </nav>
+      <span class="version">Bear &amp; Moose · Version {{ version }}</span>
+    </div>
+  </header>
+  <main>
+    <div class="preview-notice"><span class="badge">UI preview</span><p>Sample data. Changes last until you reload this page. DNS updates are not connected yet.</p></div>
+    <section class="control-panel" id="system-status" aria-labelledby="status-heading">
+      <img class="control-logo" src="/pages/images/bmdynip-logo.png" alt="Bear &amp; Moose Dynamic DNS" width="1254" height="1254">
+      <div class="control-settings">
+        <div class="panel-heading"><h1 id="status-heading">System status</h1><span class="badge badge-idle">Not connected</span></div>
+        <p class="note introduction">Dynamic IPv4 records for <strong>osoyalce.com</strong></p>
+        <dl class="status-values">
+          <div><dt>Public IPv4</dt><dd><code>203.0.113.42</code> <span class="note">(sample)</span></dd></div>
+          <div><dt>DNS provider</dt><dd>GoDaddy</dd></div>
+          <div><dt>Update worker</dt><dd>Not connected <span class="note">· Every 5 minutes when enabled</span></dd></div>
+          <div><dt>Last IP check</dt><dd>Awaiting first check</dd></div>
+          <div><dt>Last DNS update</dt><dd>Awaiting first update</dd></div>
+          <div><dt>Managed names</dt><dd id="hostname-count">1 sample hostname</dd></div>
+        </dl>
+      </div>
+    </section>
+    <section class="panel" id="hostnames" aria-labelledby="hostnames-heading">
+      <div class="panel-heading"><h2 id="hostnames-heading">Hostnames</h2><span class="badge">A records</span></div>
+      <p class="note">Each hostname points to this system’s public IPv4 address.</p>
+      <form id="add-hostname" novalidate>
+        <label for="hostname">New hostname
+          <span class="hostname-input"><input id="hostname" name="hostname" type="text" placeholder="e.g. wintermute" required maxlength="63" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="hostname-help hostname-feedback"><span class="domain-suffix">.osoyalce.com</span></span>
+        </label>
+        <button type="submit" class="primary">Add hostname</button>
+      </form>
+      <p class="note" id="hostname-help">Enter one label using letters, numbers, and hyphens. Start and end with a letter or number.</p>
+      <p id="hostname-feedback" class="feedback" role="status" aria-live="polite"></p>
+      <div class="table-wrap" tabindex="0" role="region" aria-label="Managed A records">
+        <table class="hostnames-table">
+          <thead><tr><th scope="col">Hostname</th><th scope="col">Type</th><th scope="col">IPv4 address</th><th scope="col">Status</th><th scope="col" class="actions">Actions</th></tr></thead>
+          <tbody id="hostname-rows"><tr><td><code>wintermute.osoyalce.com</code></td><td>A</td><td><code>203.0.113.42</code></td><td><span class="badge badge-idle">Sample</span></td><td class="actions"><button type="button" disabled>Delete</button></td></tr></tbody>
+        </table>
+      </div>
+      <noscript><p class="note">Enable JavaScript to try adding and deleting sample hostnames.</p></noscript>
+    </section>
+    <section class="panel" id="activity" aria-labelledby="activity-heading">
+      <div class="panel-heading"><h2 id="activity-heading">Status messages</h2><span class="note">Current preview session</span></div>
+      <div class="table-wrap activity-wrap" tabindex="0" role="region" aria-label="Status message history">
+        <table class="activity-table">
+          <thead><tr><th scope="col">Time (local)</th><th scope="col">Source</th><th scope="col">Message</th></tr></thead>
+          <tbody id="activity-rows"><tr><td>—</td><td>UI</td><td>Sample interface ready. DNS updates are not connected.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+    <footer>Bear &amp; Moose Dynamic DNS <span>osoyalce.com</span></footer>
+  </main>
+  <dialog id="delete-dialog" aria-labelledby="delete-heading" aria-describedby="delete-description">
+    <form method="dialog">
+      <h2 id="delete-heading">Delete hostname?</h2>
+      <p id="delete-description">Remove <strong id="delete-name"></strong> from this preview?</p>
+      <p class="note">Once DNS is connected, Delete will also remove its GoDaddy A record.</p>
+      <div class="dialog-actions"><button value="cancel" autofocus>Cancel</button><button id="confirm-delete" value="delete" class="danger">Delete hostname</button></div>
+    </form>
+  </dialog>
+</body>
+</html>

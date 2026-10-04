@@ -6,8 +6,8 @@ layout: single
 
 [Documentation index]({% link index.md %})
 
-MyDynIP runs as root on Sally, including its cron job. It authenticates to
-GoDaddy using a Personal Access Token (PAT) in `/etc/mydynip/auto.env`.
+BMDynIP runs as root on Sally, including its cron job. It authenticates to
+GoDaddy using a Personal Access Token (PAT) in `/etc/bmdynip/auto.env`.
 For GoDaddy CLI setup, see the
 [GoDaddy CLI reference](https://kb.osoyalce.com/pages/godaddy-cli.html).
 
@@ -19,7 +19,7 @@ login. The token initially copied from `/home/dan/.godaddy-cli` matched the
 installed file, but GoDaddy rejected it with HTTP 401 Unauthorized.
 
 Supplying `GDDY_PAT` makes `gddy` use that PAT ahead of a cached OAuth login.
-We generated a new PAT named `mydynip`, replaced the installed token, and
+We generated a new PAT named `bmdynip`, replaced the installed token, and
 confirmed that root could query DNS and run the updater successfully.
 
 ## Generate a PAT
@@ -27,7 +27,7 @@ confirmed that root could query DNS and run the updater successfully.
 Sign in to the GoDaddy account that manages the zone and open the
 [Personal Access Token page](https://developer.godaddy.com/personal-access-token).
 
-1. Generate a token named `mydynip`.
+1. Generate a token named `bmdynip`.
 2. Grant `domains.dns:update` permission, which also permits DNS reads.
 3. Choose an expiration date and arrange to replace the token before it expires.
 4. Copy the token when it is displayed; GoDaddy shows it only once.
@@ -41,11 +41,11 @@ root can read the installed credential file.
 Run these commands as root on the production host:
 
 ```sh
-install -d -m 0700 /etc/mydynip
-(umask 077; touch /etc/mydynip/auto.env)
-chown root:root /etc/mydynip/auto.env
-chmod 0600 /etc/mydynip/auto.env
-vi /etc/mydynip/auto.env
+install -d -m 0700 /etc/bmdynip
+(umask 077; touch /etc/bmdynip/auto.env)
+chown root:root /etc/bmdynip/auto.env
+chmod 0600 /etc/bmdynip/auto.env
+vi /etc/bmdynip/auto.env
 ```
 
 Store exactly one unquoted assignment, replacing the placeholder with the
@@ -62,10 +62,10 @@ repository. No root OAuth login or `gddy pat add` step is required.
 Check ownership and permissions without displaying the token:
 
 ```sh
-stat -c '%U:%G %a %n' /etc/mydynip/auto.env
+stat -c '%U:%G %a %n' /etc/bmdynip/auto.env
 ```
 
-Expected: `root:root 600 /etc/mydynip/auto.env`.
+Expected: `root:root 600 /etc/bmdynip/auto.env`.
 
 ## Validate authentication
 
@@ -75,7 +75,7 @@ token out of the parent shell's environment:
 ```sh
 (
     set -a
-    . /etc/mydynip/auto.env
+    . /etc/bmdynip/auto.env
     set +a
     /opt/prod/godaddy-cli/gddy dns list osoyalce.com --type A --env prod --timeout 20s
 )
@@ -88,10 +88,10 @@ check its scopes and access to the zone. `gddy auth status` reports cached
 OAuth state and does not establish that this PAT works.
 
 After the query succeeds, follow the
-[running guide]({% link pages/running.md %}) to execute MyDynIP against the
+[running guide]({% link pages/running.md %}) to execute BMDynIP against the
 configured hostname list. During setup on Sally, we verified the configured
-A record matched `/opt/prod/mydynip/data/state.json` after the successful run.
+A record matched `/opt/prod/bmdynip/data/state.json` after the successful run.
 
-To rotate the token, replace the assignment and repeat this check. MyDynIP
+To rotate the token, replace the assignment and repeat this check. BMDynIP
 reads the file on each run, so no reinstall is needed. Installation and
 uninstall both preserve the credential file.
