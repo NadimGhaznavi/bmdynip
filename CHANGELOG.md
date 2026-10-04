@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Start the Web UI on port 49700 during installation and enable it at boot.
+- Restart the Web UI on upgrades and print its status and port after HTTP responds.
+
+### Added
+
+- Add `scripts/restart.sh` to restart the Web UI and report its status and port.
+
 ## [1.0.2] - 2026-10-04 @ 10:28
 
 ### Fixed

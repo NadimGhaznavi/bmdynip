@@ -4,7 +4,7 @@ author_profile: true
 layout: single
 ---
 
-[Documentation index]({% link index.md %})
+[Documentation index]({{ site.baseurl }}{% link index.md %})
 
 From your BMDynIP checkout, run as root on the production host:
 
@@ -12,6 +12,7 @@ From your BMDynIP checkout, run as root on the production host:
 ./scripts/uninstall.sh
 ```
 
-This removes `/opt/prod/bmdynip/bin/bmdynip` and `/etc/cron.d/bmdynip`.
+This stops and disables `bmdynip-web.service`, removes its unit file,
+both executables in `/opt/prod/bmdynip/bin/`, and `/etc/cron.d/bmdynip`.
 Configuration, saved data, and `/etc/bmdynip/auto.env` remain for
-[reinstallation]({% link pages/installation.md %}). DNS records are not deleted.
+[reinstallation]({{ site.baseurl }}{% link pages/installation.md %}). DNS records are not deleted.

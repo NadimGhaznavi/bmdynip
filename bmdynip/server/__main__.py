@@ -2,19 +2,23 @@
 
 import argparse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from importlib.resources import files
 from pathlib import Path
 
 from bmdynip.constants.DBMDynIP import DBMDynIP
 
 
-SERVER_DIR = Path(__file__).resolve().parent
+SERVER_DIR = files("bmdynip.server")
+LOGO = SERVER_DIR / "static/bmdynip-logo.png"
+if not LOGO.is_file():
+    LOGO = Path(__file__).resolve().parents[2] / "pages/images/bmdynip-logo.png"
 ASSETS = {
     "/": (SERVER_DIR / "static/index.html", "text/html; charset=utf-8"),
     "/static/style.css": (SERVER_DIR / "static/style.css", "text/css; charset=utf-8"),
     "/static/ui.js": (SERVER_DIR / "static/ui.js", "text/javascript; charset=utf-8"),
     "/static/demo.js": (SERVER_DIR / "static/demo.js", "text/javascript; charset=utf-8"),
     "/pages/images/bmdynip-logo.png": (
-        SERVER_DIR.parents[1] / "pages/images/bmdynip-logo.png", "image/png"),
+        LOGO, "image/png"),
 }
 
 
