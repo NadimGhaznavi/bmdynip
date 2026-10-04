@@ -1,0 +1,9 @@
+"""A data manager deployed on a machine."""
+
+from bmdynip.entity.DeployedComponent import DeployedComponent
+from dataclasses import dataclass, field
+
+
+@dataclass
+class DataManager(DeployedComponent):
+    dataPackage: list[int] = field(default_factory=list)
