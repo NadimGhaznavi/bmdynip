@@ -43,7 +43,7 @@ def restart() -> None:
             if time.monotonic() >= deadline:
                 raise ValueError(f"Web UI did not respond on port {DBMDynIP.WEB_PORT}.") from None
             time.sleep(0.1)
-    print(f"BMDynIP Web UI: active on port {DBMDynIP.WEB_PORT} ({url})")
+    print(f"BMDynIP Web UI: active on port {DBMDynIP.WEB_PORT} (listening on {DBMDynIP.WEB_HOST})")
 
 
 def read_token() -> str:
