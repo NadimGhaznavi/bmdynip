@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Create the protected GoDaddy credential file during first installation using
+  root's `/root/.godaddy-cli` PAT, `GDDY_PAT`, or hidden PAT entry, and preserve
+  existing credentials on reinstall.
+- Use the saved production PAT for DNS updates even when `GDDY_PAT_PROD` is set.
+
 ## [1.0.1] - 2026-10-04 @ 10:17
 
 ### Added

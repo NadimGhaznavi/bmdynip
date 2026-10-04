@@ -19,9 +19,11 @@ class GoDaddyCli:
     def _run(self, action: str, record: DnsRecord, *extra: str) -> None:
         command = [DBMDynIP.GODADDY_CLI, "dns", action, record.domain,
                    "--type", "A", "--name", record.name, *extra,
-                   "--output", "json", "--timeout", "60s"]
+                   "--env", "prod", "--output", "json", "--timeout", "60s"]
+        environment = dict(os.environ, GDDY_PAT=self.token)
+        environment.pop("GDDY_PAT_PROD", None)
         result = subprocess.run(
-            command, env=dict(os.environ, GDDY_PAT=self.token),
+            command, env=environment,
             stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=65,
         )
         context = f"gddy {action} {record.name}.{record.domain}"

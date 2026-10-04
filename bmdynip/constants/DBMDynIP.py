@@ -10,6 +10,7 @@ class DBMDynIP:
     WEB_REQUEST_TIMEOUT: Final[int] = 15
     INSTALL_DIR: Final[str] = "/opt/prod/bmdynip"
     CREDENTIALS_FILE: Final[str] = "/etc/bmdynip/auto.env"
+    ROOT_CREDENTIALS_FILE: Final[str] = "/root/.godaddy-cli"
     CRON_FILE: Final[str] = "/etc/cron.d/bmdynip"
     GODADDY_CLI: Final[str] = "/opt/prod/godaddy-cli/gddy"
     CRON_SCHEDULE: Final[str] = "*/5 * * * *"

@@ -4,23 +4,10 @@ author_profile: true
 layout: single
 ---
 
-[Documentation index]({% link index.md %})
+[Documentation index]({{ site.baseurl }}{% link index.md %})
 
-BMDynIP runs as root on Sally, including its cron job. It authenticates to
-GoDaddy using a Personal Access Token (PAT) in `/etc/bmdynip/auto.env`.
-For GoDaddy CLI setup, see the
-[GoDaddy CLI reference](https://kb.osoyalce.com/pages/godaddy-cli.html).
-
-## Why a separate credential was needed
-
-The `gddy` commands worked as `dan` because that account had a valid,
-refreshable OAuth login with DNS-update permission. Root did not share that
-login. The token initially copied from `/home/dan/.godaddy-cli` matched the
-installed file, but GoDaddy rejected it with HTTP 401 Unauthorized.
-
-Supplying `GDDY_PAT` makes `gddy` use that PAT ahead of a cached OAuth login.
-We generated a new PAT named `bmdynip`, replaced the installed token, and
-confirmed that root could query DNS and run the updater successfully.
+BMDynIP and its cron job run as root. They use a GoDaddy Personal Access
+Token (PAT) from `/etc/bmdynip/auto.env` for production DNS updates.
 
 ## Generate a PAT
 
@@ -29,35 +16,41 @@ Sign in to the GoDaddy account that manages the zone and open the
 
 1. Generate a token named `bmdynip`.
 2. Grant `domains.dns:update` permission, which also permits DNS reads.
-3. Choose an expiration date and arrange to replace the token before it expires.
+3. Choose an expiration date and replace the token before it expires.
 4. Copy the token when it is displayed; GoDaddy shows it only once.
 
-The PAT belongs to the GoDaddy account. Its name is a label; it is not a
-Linux username, hostname, or DNS record name. Root on Sally uses it because
-root can read the installed credential file.
+GoDaddy must issue the PAT. The installer cannot generate a valid token locally.
 
 ## Install the credential
 
-Run these commands as root on the production host:
+Run from the checkout as root:
 
 ```sh
-install -d -m 0700 /etc/bmdynip
-(umask 077; touch /etc/bmdynip/auto.env)
-chown root:root /etc/bmdynip/auto.env
-chmod 0600 /etc/bmdynip/auto.env
-vi /etc/bmdynip/auto.env
+./scripts/install.sh
 ```
 
-Store exactly one unquoted assignment, replacing the placeholder with the
-new token:
+If the installed credential file is missing, the installer first uses `GDDY_PAT`
+from the environment, then `/root/.godaddy-cli`, then prompts with input hidden.
+The source file must be owned by root with mode `0600` and contain either a
+single `GDDY_PAT=...` assignment or a plain PAT. It is read without executing
+shell code and remains unchanged.
+
+The installer creates the credential directory with mode `0700` and the
+root-owned file with mode `0600`. Never put the PAT in command arguments,
+cron entries, or the repository.
+
+Existing credentials are validated and retained on reinstall; installation
+fails if their format, ownership, or permissions are invalid. Symlinked
+credential files or directories are rejected. Uninstall preserves credentials.
+
+The file contains exactly one unquoted assignment:
 
 ```text
 GDDY_PAT=gd_pat_your_token_here
 ```
 
-The updater reads this file and passes the token through the child process's
-environment. Do not put the token in command arguments, cron entries, or the
-repository. No root OAuth login or `gddy pat add` step is required.
+The updater reads this file on each run and passes the PAT through the child
+process environment. No root OAuth login or `gddy pat add` step is required.
 
 Check ownership and permissions without displaying the token:
 
@@ -67,31 +60,37 @@ stat -c '%U:%G %a %n' /etc/bmdynip/auto.env
 
 Expected: `root:root 600 /etc/bmdynip/auto.env`.
 
-## Validate authentication
+## Validate authentication and rotate
 
-As root, load the credential for one read-only query. The subshell keeps the
-token out of the parent shell's environment:
+As root, load the credential for a read-only query:
 
 ```sh
-(
-    set -a
-    . /etc/bmdynip/auto.env
-    set +a
-    /opt/prod/godaddy-cli/gddy dns list osoyalce.com --type A --env prod --timeout 20s
-)
+python3 - <<'PY'
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+sys.path.insert(0, '/opt/prod/bmdynip/bin/bmdynip')
+from bmdynip.interface.Credentials import Credentials
+
+environment = dict(os.environ)
+environment.pop('GDDY_PAT_PROD', None)
+environment['GDDY_PAT'] = Credentials.load(Path('/etc/bmdynip/auto.env'))
+result = subprocess.run(
+    ['/opt/prod/godaddy-cli/gddy', 'dns', 'list', 'osoyalce.com',
+     '--type', 'A', '--env', 'prod', '--timeout', '20s'],
+    env=environment, timeout=25)
+raise SystemExit(result.returncode)
+PY
 ```
 
-A successful response confirms read access; an empty record list is also a
-valid result. If GoDaddy returns 401, check that the new token was installed
-correctly and is still active. A 403 indicates an authorization problem;
-check its scopes and access to the zone. `gddy auth status` reports cached
-OAuth state and does not establish that this PAT works.
+A successful response confirms read access; an empty record list is valid.
+HTTP 401 indicates an invalid or expired token. For HTTP 403, check the token's
+scopes and access to the zone. `gddy auth status` reports cached OAuth state;
+use the DNS query to check this PAT.
 
-After the query succeeds, follow the
-[running guide]({% link pages/running.md %}) to execute BMDynIP against the
-configured hostname list. During setup on Sally, we verified the configured
-A record matched `/opt/prod/bmdynip/data/state.json` after the successful run.
-
-To rotate the token, replace the assignment and repeat this check. BMDynIP
-reads the file on each run, so no reinstall is needed. Installation and
-uninstall both preserve the credential file.
+To rotate, edit `/etc/bmdynip/auto.env` as root, replace the assignment, and
+repeat the query. No reinstall is needed. Follow the
+[running guide]({{ site.baseurl }}{% link pages/running.md %}) to run the updater
+against your configured hostname list.
