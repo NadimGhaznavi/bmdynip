@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import re
 
-from mydynip.entity.DnsRecord import DnsRecord
+from bmdynip.entity.DnsRecord import DnsRecord
 
 
 class Configuration:

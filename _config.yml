@@ -22,16 +22,16 @@ minimal_mistakes_skin: "dark"
 # Site Settings
 locale: "en-US"
 rtl: # true, false (default) # turns direction of the page into right to left for RTL languages
-title: "MyDynIP"
+title: "BMDynIP"
 title_separator: "-"
-subtitle: # site tagline that appears below site title in masthead
+subtitle: "Bear & Moose"
 name: "Local Dynamic DNS"
-description: "A local GoDaddy based Public Dynamic IP project."
-url: "https://mydynip.osoyalce.com" # the base hostname & protocol for your site e.g. "https://mmistakes.github.io"
+description: "BMDynIP, Bear & Moose's local GoDaddy-based public dynamic IP service."
+url: "https://bmdynip.osoyalce.com" # the base hostname & protocol for your site e.g. "https://mmistakes.github.io"
 baseurl: "" # the subpath of your site, e.g. "/blog"
-repository: NadimGhaznavi/mydynip # GitHub username/repo-name e.g. "mmistakes/minimal-mistakes"
+repository: NadimGhaznavi/bmdynip # GitHub username/repo-name e.g. "mmistakes/minimal-mistakes"
 teaser: # path of fallback teaser image, e.g. "/assets/images/500x300.png"
-logo: "/pages/images/mydynip-logo.png"
+logo: "/pages/images/bmdynip-logo.png"
 masthead_title: # overrides the website title displayed in the masthead, use " " for no title
 breadcrumbs: # true, false (default)
 words_per_minute: 200

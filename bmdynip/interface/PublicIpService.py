@@ -3,13 +3,13 @@
 from ipaddress import IPv4Address
 import subprocess
 
-from mydynip.constants.DMyDynIP import DMyDynIP
+from bmdynip.constants.DBMDynIP import DBMDynIP
 
 
 class PublicIpService:
     def current_address(self) -> IPv4Address:
         addresses = []
-        for url in DMyDynIP.PUBLIC_IP_URLS:
+        for url in DBMDynIP.PUBLIC_IP_URLS:
             result = subprocess.run(
                 ["/usr/bin/curl", "-4", "--fail", "--silent", "--show-error",
                  "--connect-timeout", "10", "--max-time", "20", url],

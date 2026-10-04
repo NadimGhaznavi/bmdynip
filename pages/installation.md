@@ -8,11 +8,11 @@ layout: single
 
 [Installation]({% link pages/installation.md %}) · [Configuration]({% link pages/configuration.md %}) · [Running and monitoring]({% link pages/running.md %})
 
-MyDynIP updates the configured hostnames to this host's public IPv4 address.
-It runs as root every five minutes from `/etc/cron.d/mydynip`.
+BMDynIP updates the configured hostnames to this host's public IPv4 address.
+It runs as root every five minutes from `/etc/cron.d/bmdynip`.
 
 Run the installation commands below as root on
-the production host. Run repository commands from your MyDynIP checkout.
+the production host. Run repository commands from your BMDynIP checkout.
 
 ## Install
 
@@ -21,7 +21,7 @@ and `/opt/prod/godaddy-cli/gddy`. No Python dependencies or virtual environment
 are needed.
 
 Complete [root GoDaddy authentication]({% link pages/root-authentication.md %})
-first. The installer requires `/etc/mydynip/auto.env`, owned by root with mode
+first. The installer requires `/etc/bmdynip/auto.env`, owned by root with mode
 `0600`, and preserves it on reinstall.
 
 From the checkout, as root:
@@ -34,10 +34,10 @@ The installer creates:
 
 | Location | Contents |
 | --- | --- |
-| `/opt/prod/mydynip/bin/mydynip` | Executable Python archive containing the application |
-| `/opt/prod/mydynip/conf/mydynip.json` | Domain and relative A-record names |
-| `/opt/prod/mydynip/data/` | Last successful update and process lock |
-| `/etc/cron.d/mydynip` | Root cron job using `DMyDynIP.CRON_SCHEDULE` |
+| `/opt/prod/bmdynip/bin/bmdynip` | Executable Python archive containing the application |
+| `/opt/prod/bmdynip/conf/bmdynip.json` | Domain and relative A-record names |
+| `/opt/prod/bmdynip/data/` | Last successful update and process lock |
+| `/etc/cron.d/bmdynip` | Root cron job using `DBMDynIP.CRON_SCHEDULE` |
 
 Installation enables cron immediately. It does not run a DNS update itself.
 The supplied hostname list is empty, so the job makes no DNS changes until

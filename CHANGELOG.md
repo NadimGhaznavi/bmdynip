@@ -16,6 +16,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-04 @ 10:17
+
+### Added
+
+- Add a web UI preview on port 49700 with logo-matched colors, system status,
+  sample A-record management, and activity messages. Preview changes reset on reload.
+
+### Summary
+
+Rename the project to BMDynIP (Bear & Moose), updating branding, GitHub and
+website references, application names, and installation paths consistently.
+
+### Changed
+
+- Rename the Python package to `bmdynip` and the constants class to `DBMDynIP`.
+- Use `bmdynip` for the executable, configuration filename, cron job, and syslog tag.
+- Update installation and credential paths to `/opt/prod/bmdynip` and `/etc/bmdynip/auto.env`.
+- Update documentation, tests, logo filename, and the site address to `bmdynip.osoyalce.com`.
+- Identify BM as Bear & Moose and link to `osoyalce.com` from the documentation index.
+- Adopt BMGeoIP's development guidance, adapted to BMDynIP's updater, installation, and verification workflows.
+
 ## [1.0.0] - 2026-09-26 @ 14:42
 
 ### Added
@@ -33,14 +54,14 @@ installation and uninstall scripts that preserve configuration and data.
 
 - Configure one domain and a hostname list, empty by default; no application hostnames are hardcoded.
 - Add public-IP discovery, DNS record entities, and the update activity with GoDaddy CLI and saved-state interfaces.
-- Add root installation under `/opt/prod/mydynip` and a cron job every five minutes.
-- Read the root-owned GoDaddy PAT from `/etc/mydynip/auto.env` with mode `0600`.
+- Add root installation under `/opt/prod/bmdynip` and a cron job every five minutes.
+- Read the root-owned GoDaddy PAT from `/etc/bmdynip/auto.env` with mode `0600`.
 - Preserve saved state on DNS failure, skip overlapping runs, and refresh records when configuration changes.
 - Document installation, configuration, logging, and uninstall behavior.
 - Include production credential setup and installation verification commands in the user guides.
-- Add the GoDaddy CLI path as `DMyDynIP.GODADDY_CLI`.
-- Add the ipify and ifconfig.me URLs as `DMyDynIP.PUBLIC_IP_URLS`.
-- Define the five-minute cron schedule as `DMyDynIP.CRON_SCHEDULE`.
+- Add the GoDaddy CLI path as `DBMDynIP.GODADDY_CLI`.
+- Add the ipify and ifconfig.me URLs as `DBMDynIP.PUBLIC_IP_URLS`.
+- Define the five-minute cron schedule as `DBMDynIP.CRON_SCHEDULE`.
 
 ### Changed
 
@@ -61,8 +82,8 @@ installation and uninstall scripts that preserve configuration and data.
 ### Changed
 
 - Validate release and stored versions as Semantic Versions, rejecting duplicate version declarations and numeric prerelease identifiers with leading zeroes.
-- Follow Ax3l's constants convention with `DMyDynIP.VERSION` in `DMyDynIP.py`.
-- Adapt the release script to read and update the MyDynIP version constant.
+- Follow Ax3l's constants convention with `DBMDynIP.VERSION` in `DBMDynIP.py`.
+- Adapt the release script to read and update the BMDynIP version constant.
 - Use Jekyll-generated documentation links and remove links to missing pages inherited from R3el.
 
 ### Removed
