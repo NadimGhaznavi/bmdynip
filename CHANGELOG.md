@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-04 @ 10:17
+
 ### Added
 
 - Add a web UI preview on port 49700 with logo-matched colors, system status,
