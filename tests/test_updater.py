@@ -5,9 +5,13 @@ from ipaddress import IPv4Address
 import json
 import os
 from pathlib import Path
+import socket
 import subprocess
 import tempfile
+import time
 import unittest
+from urllib.error import URLError
+from urllib.request import ProxyHandler, build_opener
 import zipfile
 from unittest.mock import Mock, patch
 
@@ -214,9 +218,48 @@ class BoundaryTests(TemporaryFiles):
 class InstallationTests(TemporaryFiles):
     def setUp(self):
         super().setUp()
+        self.service = self.root / "bmdynip-web.service"
+        service_patch = patch.object(DBMDynIP, "WEB_SERVICE_FILE", str(self.service))
+        service_patch.start()
+        self.addCleanup(service_patch.stop)
+        systemctl_patch = patch.object(installer, "systemctl")
+        self.systemctl = systemctl_patch.start()
+        self.addCleanup(systemctl_patch.stop)
+        opener_patch = patch.object(installer, "build_opener")
+        self.opener = opener_patch.start().return_value
+        self.opener.open.return_value.__enter__.return_value.status = 200
+        self.addCleanup(opener_patch.stop)
         source = patch.object(DBMDynIP, "ROOT_CREDENTIALS_FILE", str(self.root / ".godaddy-cli"))
         source.start()
         self.addCleanup(source.stop)
+
+    def test_restart_reports_port_after_service_and_http_checks(self):
+        with patch("sys.stdout", new=io.StringIO()) as output:
+            installer.restart()
+        self.assertEqual(self.systemctl.call_args_list, [
+            unittest.mock.call("restart", self.service.name),
+            unittest.mock.call("is-active", "--quiet", self.service.name),
+        ])
+        self.assertIn(f"active on port {DBMDynIP.WEB_PORT}", output.getvalue())
+        request = self.opener.open.call_args.args[0]
+        self.assertEqual(request.full_url, f"http://127.0.0.1:{DBMDynIP.WEB_PORT}/")
+        self.assertEqual(request.get_method(), "HEAD")
+
+    def test_restart_failure_does_not_report_success(self):
+        self.systemctl.side_effect = subprocess.CalledProcessError(1, "systemctl")
+        with patch("sys.stdout", new=io.StringIO()) as output:
+            with self.assertRaises(subprocess.CalledProcessError):
+                installer.restart()
+        self.assertEqual(output.getvalue(), "")
+        self.opener.open.assert_not_called()
+
+    def test_restart_waits_for_http_and_times_out_without_success(self):
+        self.opener.open.side_effect = URLError("connection refused")
+        with patch.object(installer.time, "monotonic", side_effect=[0, 11]), \
+             patch("sys.stdout", new=io.StringIO()) as output:
+            with self.assertRaisesRegex(ValueError, f"port {DBMDynIP.WEB_PORT}"):
+                installer.restart()
+        self.assertEqual(output.getvalue(), "")
 
     def test_root_credential_file_is_imported_without_prompting(self):
         source = Path(DBMDynIP.ROOT_CREDENTIALS_FILE)
@@ -355,8 +398,16 @@ class InstallationTests(TemporaryFiles):
              patch("sys.stdout", new=io.StringIO()):
             installer.install()
             executable = install_root / "bin/bmdynip"
-            output = subprocess.run([str(executable), "--version"], capture_output=True, text=True, check=True)
+            output = subprocess.run([str(executable), "--version"], capture_output=True, text=True, check=True, timeout=10)
             self.assertEqual(output.stdout.strip(), DBMDynIP.VERSION)
+            web_executable = install_root / "bin/bmdynip-web"
+            self.assertEqual(web_executable.stat().st_mode & 0o777, 0o755)
+            self.assertEqual(self.service.stat().st_mode & 0o777, 0o644)
+            self.assertIn(f"ExecStart={web_executable} --host {DBMDynIP.WEB_HOST} --port {DBMDynIP.WEB_PORT}",
+                          self.service.read_text())
+            self.systemctl.assert_any_call("enable", self.service.name)
+            self.systemctl.assert_any_call("restart", self.service.name)
+            self.check_web_archive(web_executable)
             self.assertIn(f"{DBMDynIP.CRON_SCHEDULE} root {executable}", cron.read_text())
             self.assertNotIn("gd_pat", cron.read_text())
             self.assertEqual(cron.stat().st_mode & 0o777, 0o644)
@@ -371,6 +422,9 @@ class InstallationTests(TemporaryFiles):
             installer.uninstall()
             installer.uninstall()
             self.assertFalse(executable.exists())
+            self.assertFalse(web_executable.exists())
+            self.assertFalse(self.service.exists())
+            self.systemctl.assert_any_call("disable", "--now", self.service.name)
             self.assertFalse(cron.exists())
             self.assertEqual(config.read_text(), custom_config)
             self.assertEqual(state.read_text(), '{"ip":"8.8.8.8","records":[]}\n')
@@ -379,6 +433,36 @@ class InstallationTests(TemporaryFiles):
             self.assertTrue(executable.exists())
             self.assertTrue(cron.exists())
             self.assertEqual(config.read_text(), custom_config)
+
+    def check_web_archive(self, executable):
+        with socket.socket() as listener:
+            listener.bind(("127.0.0.1", 0))
+            port = listener.getsockname()[1]
+        process = subprocess.Popen(
+            [str(executable), "--host", "127.0.0.1", "--port", str(port)],
+            cwd=self.root, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+        )
+        try:
+            opener = build_opener(ProxyHandler({}))
+            deadline = time.monotonic() + 10
+            while True:
+                try:
+                    with opener.open(f"http://127.0.0.1:{port}/", timeout=1) as response:
+                        body = response.read()
+                    break
+                except (URLError, TimeoutError):
+                    if process.poll() is not None or time.monotonic() >= deadline:
+                        self.fail("Installed Web UI failed to start.")
+                    time.sleep(0.05)
+            self.assertIn(DBMDynIP.VERSION.encode(), body)
+            for path in ("/static/ui.js", "/static/demo.js", "/static/style.css",
+                         "/pages/images/bmdynip-logo.png"):
+                with opener.open(f"http://127.0.0.1:{port}{path}", timeout=2) as response:
+                    self.assertEqual(response.status, 200)
+                    self.assertTrue(response.read())
+        finally:
+            process.terminate()
+            process.communicate(timeout=5)
 
 
 if __name__ == "__main__":
