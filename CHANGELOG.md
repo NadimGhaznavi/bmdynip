@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-10-04 @ 23:12
+
 ### Fixed
 
 - Show the sanitized DNS failure reason in status messages, including GoDaddy
