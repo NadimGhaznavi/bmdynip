@@ -24,6 +24,10 @@ export function snapshot() {
   return request('/api/snapshot');
 }
 
+export function dnsStatus(identity) {
+  return request(`/api/records/${identity}/dns`);
+}
+
 export function addRecord(name) {
   return request('/api/records', {method: 'POST',
     headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name})});

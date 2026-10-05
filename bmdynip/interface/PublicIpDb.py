@@ -64,9 +64,14 @@ class PublicIpDb:
             self.tags.set(identity, 'error', error)
             self.tags.set(self.connection, 'lastError', error)
 
-    def applied(self, records, address: IPv4Address) -> None:
+    def submitted(self, identity: int) -> None:
+        with self.db.transaction():
+            self.db.execute("UPDATE ChangeRequest SET status='submitted' WHERE id=%s", (identity,))
+            self.tags.remove(identity, 'error')
+
+    def applied(self, records, address: IPv4Address, *, submitted: bool = False) -> None:
         with self.db.transaction():
             for record in records:
                 self.db.execute('UPDATE DnsRecord SET address=%s WHERE id=%s', (str(address), record.id))
-            self.tags.set(self.connection, 'lastAppliedOn', utc_now())
+            self.tags.set(self.connection, 'lastSubmittedOn' if submitted else 'lastAppliedOn', utc_now())
             self.tags.remove(self.connection, 'lastError')

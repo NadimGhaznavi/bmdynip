@@ -1,4 +1,4 @@
-"""Apply a changed public address and remember it only after success."""
+"""Dispatch changed public addresses and remember their submission."""
 
 from dataclasses import replace
 import subprocess
@@ -30,7 +30,7 @@ class UpdatePublicIp:
         if self.state.is_current(address, records) and (not self.audit or
                                                        all(r.address == address for r in records)):
             if self.messages:
-                self.messages.append('All hostnames are current; no DNS update needed.')
+                self.messages.append('All hostnames have been submitted at this address; no DNS update needed.')
             return False
         for record in records:
             hostname = record.domain if record.name == '@' else record.name + '.' + record.domain
@@ -47,13 +47,13 @@ class UpdatePublicIp:
                                          'saved state is preserved for retry.')
                 raise
             if self.audit:
-                self.audit.succeeded(request)
+                self.audit.submitted(request)
             if self.messages:
-                self.messages.append(f'DNS update succeeded for {hostname}.')
+                self.messages.append(f'DNS update submitted for {hostname}.')
         if self.audit:
-            self.audit.applied(records, address)
+            self.audit.applied(records, address, submitted=True)
         self.state.save(address, records)
         if self.messages:
-            self.messages.append(f'Saved successful update state for {len(records)} hostname(s) at {address}.')
-        print(f"Updated {len(records)} A record(s) to {address}.")
+            self.messages.append(f'Saved submitted update state for {len(records)} hostname(s) at {address}.')
+        print(f"Submitted {len(records)} A record(s) to {address}.")
         return True
