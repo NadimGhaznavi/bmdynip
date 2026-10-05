@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import socket
+import shutil
 import subprocess
 import tempfile
 import time
@@ -13,6 +14,7 @@ import unittest
 from urllib.error import URLError
 from urllib.request import ProxyHandler, build_opener
 import zipfile
+import pymysql
 from unittest.mock import Mock, patch
 
 from bmdynip.activity.UpdatePublicIp import UpdatePublicIp
@@ -232,6 +234,12 @@ class InstallationTests(TemporaryFiles):
         source = patch.object(DBMDynIP, "ROOT_CREDENTIALS_FILE", str(self.root / ".godaddy-cli"))
         source.start()
         self.addCleanup(source.stop)
+        dependencies = patch.object(installer, "install_dependencies", side_effect=
+                                    lambda target: shutil.copytree(
+                                        Path(pymysql.__file__).parent, target / "pymysql",
+                                        ignore=shutil.ignore_patterns("__pycache__", "*.pyc")))
+        dependencies.start()
+        self.addCleanup(dependencies.stop)
 
     def test_restart_reports_port_after_service_and_http_checks(self):
         with patch("sys.stdout", new=io.StringIO()) as output:

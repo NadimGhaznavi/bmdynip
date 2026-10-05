@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import venv
 from urllib.error import URLError
 from urllib.request import ProxyHandler, Request, build_opener
 import zipapp
@@ -75,6 +76,18 @@ def read_token() -> str:
         raise ValueError("No GoDaddy PAT was supplied.") from None
 
 
+def install_dependencies(target: Path) -> None:
+    with tempfile.TemporaryDirectory(prefix="bmdynip-dependencies-") as directory:
+        venv.EnvBuilder(with_pip=True).create(directory)
+        python = Path(directory) / "bin/python"
+        subprocess.run(
+            [str(python), "-m", "pip", "--disable-pip-version-check", "install",
+             "--no-cache-dir", "--no-compile", "--target", str(target),
+             "-r", str(REPOSITORY / "requirements.txt")],
+            check=True, timeout=180,
+        )
+
+
 def install(*, upgrading: bool = False) -> None:
     for executable in ("/usr/bin/python3", "/usr/bin/curl", "/usr/bin/logger",
                        DBMDynIP.GODADDY_CLI, DBMDynIP.SYSTEMCTL):
@@ -84,8 +97,6 @@ def install(*, upgrading: bool = False) -> None:
     config = root / "conf" / "bmdynip.json"
     Configuration.load(config if config.exists() else REPOSITORY / "conf" / "bmdynip.json")
     Credentials.provision(Path(DBMDynIP.CREDENTIALS_FILE), read_token)
-    if upgrading:
-        systemctl("stop", Path(DBMDynIP.WEB_SERVICE_FILE).name)
     for name in ("bin", "conf", "data"):
         (root / name).mkdir(parents=True, exist_ok=True)
         (root / name).chmod(0o700 if name != "bin" else 0o755)
@@ -95,10 +106,13 @@ def install(*, upgrading: bool = False) -> None:
         config.chmod(0o600)
         with tempfile.TemporaryDirectory(prefix="bmdynip-install-") as staging:
             staged = Path(staging)
+            install_dependencies(staged)
             shutil.copytree(REPOSITORY / "bmdynip", staged / "bmdynip",
                             ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
             shutil.copyfile(REPOSITORY / "pages/images/bmdynip-logo.png",
                             staged / "bmdynip/server/static/bmdynip-logo.png")
+            if upgrading:
+                systemctl("stop", Path(DBMDynIP.WEB_SERVICE_FILE).name)
             (staged / "__main__.py").write_text(
                 "from bmdynip.app.main import main\nraise SystemExit(main())\n")
             temporary = root / "bin" / ".bmdynip.new"
