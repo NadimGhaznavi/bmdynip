@@ -31,17 +31,21 @@ To run immediately as root:
 
 Both ipify and ifconfig.me must return the same public IPv4 address. Failed
 requests, invalid responses, or disagreement prevent DNS changes. Unchanged
-addresses and managed names produce no output once successfully applied.
+addresses and managed names produce no output once submitted.
 Overlapping runs are skipped using a file lock. With no managed names, the runner
 still records the observed public IPv4 address without changing DNS.
 
-The saved IP and record names are written only after all DNS commands succeed.
-The Web UI shows the observed address, last check and successful update times,
-and DNS change history from MariaDB. A failed DNS operation appears there with
-its error; successfully applied record addresses are saved after the full run.
-Failures exit nonzero and are retried on the next cron run. Delete and add are
-separate operations: an add failure can leave the name without an A record
-until a retry succeeds. Multiple names are not updated atomically.
+DNS commands run in detached processes. Each deletes the matching A record and
+then adds the submitted address if deletion succeeds. The runner saves the IP
+and record names after launching all commands, without waiting for completion
+or parsing their output. The Web UI shows the submitted address, a **Submitted**
+status, and the last submission time; these do not confirm the provider's result.
+
+A launch failure exits nonzero and preserves the previous saved state for retry.
+Errors from detached commands go to the service log or cron output. To retry a
+background failure at the same address, remove the saved state as described below.
+An add failure can leave the name without an A record until a retry succeeds.
+Multiple names are not updated atomically.
 
 Cron sends output to syslog with the tag `bmdynip`. On systems using journald:
 

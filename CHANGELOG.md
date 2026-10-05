@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Dispatch ordered GoDaddy DNS commands without waiting for completion or parsing
+  their output. Save and display the submitted address immediately with a Submitted status.
+
 ## [1.6.3] - 2026-10-04 @ 23:22
 
 ### Fixed

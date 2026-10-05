@@ -16,13 +16,16 @@ class UiDb:
             connection = tags.role('wan')
             current = tags.get(connection, 'publicIpAddress') if connection else None
             state = {key: tags.get(connection, key) if connection else None
-                     for key in ('lastCheckedOn', 'lastAppliedOn', 'lastError')}
+                     for key in ('lastCheckedOn', 'lastAppliedOn', 'lastSubmittedOn', 'lastError')}
+            submitted = state['lastSubmittedOn'] and (not state['lastAppliedOn'] or
+                                                      state['lastSubmittedOn'] > state['lastAppliedOn'])
             records = []
             for record in DnsRecordDb(self.db).list_records():
                 hostname = record.domain if record.name == '@' else record.name + '.' + record.domain
                 records.append({'id': record.id, 'name': record.name, 'hostname': hostname,
                                 'address': str(record.address) if record.address else None,
-                                'status': 'Current' if current and str(record.address) == current else 'Pending'})
+                                'status': ('Submitted' if submitted else 'Current')
+                                if current and str(record.address) == current else 'Pending'})
             messages = []
             for row in self.db.query(
                     'SELECT cr.requestDate, cr.changeDescription, cr.status, error.value AS error '

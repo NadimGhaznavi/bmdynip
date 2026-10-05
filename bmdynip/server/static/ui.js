@@ -59,7 +59,8 @@ function render(data) {
   document.getElementById('domain-suffix').textContent = `.${data.domain}`;
   document.getElementById('public-ip').textContent = data.publicIp || 'Awaiting first check';
   time(document.getElementById('last-ip-check'), data.lastCheckedOn, 'Awaiting first check');
-  time(document.getElementById('last-dns-update'), data.lastAppliedOn, 'Awaiting first update');
+  time(document.getElementById('last-dns-update'), data.lastSubmittedOn || data.lastAppliedOn,
+    'Awaiting first submission');
   document.getElementById('worker-error-row').hidden = !data.lastError;
   document.getElementById('worker-error').textContent = data.lastError || '';
   document.getElementById('hostname-count').textContent = `${records.length} hostname${records.length === 1 ? '' : 's'}`;

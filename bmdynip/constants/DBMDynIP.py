@@ -26,6 +26,7 @@ class DBMDynIP:
     ROUTE_TARGET: Final[str] = "1.1.1.1"
     CRON_FILE: Final[str] = "/etc/cron.d/bmdynip"
     GODADDY_CLI: Final[str] = "/opt/prod/godaddy-cli/gddy"
+    DNS_SHELL: Final[str] = "/bin/sh"
     CRON_SCHEDULE: Final[str] = "*/5 * * * *"
     PUBLIC_IP_URLS: Final[tuple[str, ...]] = (
         "https://api.ipify.org",

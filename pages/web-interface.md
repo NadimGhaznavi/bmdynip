@@ -41,19 +41,22 @@ Open `http://127.0.0.1:49700/`. To access it from another machine:
 ```
 
 The interface has no authentication. It displays the configured domain, observed
-public IPv4 address, last check and update times, managed hostnames, and the latest
+public IPv4 address, last check and submission times, managed hostnames, and the latest
 100 DNS change requests alongside recent process messages. Messages show hostname
 addition, runner launch, discovery, DNS updates, and completion or failure, with
 the emitting module as the source. Status refreshes every five seconds; times use your
 browser's local timezone. An unavailable database shows an error and disables
 hostname changes until status can be refreshed.
 
-DNS failures include the provider's error. Check authentication with the
+Launch failures appear in status messages. Detached `gddy` commands write their
+output to the service log. Check authentication with the
 [root DNS query]({{ site.baseurl }}{% link pages/root-authentication.md %}).
 
 **Add hostname** saves a single label, such as `wintermute`, to the database.
 Nested names and the apex are excluded. Saving a hostname starts the installed
-runner immediately; DNS status and history refresh as the update completes.
+runner immediately. It dispatches ordered DNS delete/add commands without waiting
+for completion. The submitted address and **Submitted** status appear on the next
+refresh; they do not confirm the provider's result.
 If the runner cannot start, the saved hostname remains available for the next
 scheduled or manual run and the interface shows an error.
 **Delete** asks for confirmation and stops managing the name;

@@ -76,16 +76,16 @@ class LiveRunnerTests(LiveControlFixture):
         self.assertEqual(runner.main(), 0)
         first = self.request()[1]
         self.assertEqual(first['publicIp'], '8.8.8.8')
-        self.assertEqual(first['records'][0]['status'], 'Current')
-        self.assertTrue(first['lastCheckedOn'] and first['lastAppliedOn'])
+        self.assertEqual(first['records'][0]['status'], 'Submitted')
+        self.assertTrue(first['lastCheckedOn'] and first['lastSubmittedOn'])
         self.assertEqual(len(self.dns_history(first)), 1)
-        self.assertIn('implemented', self.dns_history(first)[0]['message'])
+        self.assertIn('submitted', self.dns_history(first)[0]['message'])
         steps = [entry['message'] for entry in reversed(first['messages'])
                  if entry['source'] != 'bmdynip.interface.PublicIpDb']
         self.assertIn('Added home.example.test; starting the runner.', steps)
         self.assertLess(steps.index('Checking public IPv4 discovery services.'),
                         steps.index('Updating home.example.test A record to 8.8.8.8.'))
-        self.assertLess(steps.index('DNS update succeeded for home.example.test.'),
+        self.assertLess(steps.index('DNS update submitted for home.example.test.'),
                         steps.index('Runner complete.'))
         saved = self.state.path.read_bytes()
         self.assertEqual(runner.main(), 0)
@@ -98,7 +98,7 @@ class LiveRunnerTests(LiveControlFixture):
         self.assertEqual(runner.main(), 0)
         self.assertEqual(self.dns.call_count, 3)
         before = self.request()[1]
-        self.assertTrue(all(row['status'] == 'Current' for row in before['records']))
+        self.assertTrue(all(row['status'] == 'Submitted' for row in before['records']))
         self.assertEqual(self.request('/api/records/' + str(home), 'DELETE')[0], 200)
         self.assertEqual(self.request()[1]['messages'], before['messages'])
 
@@ -107,13 +107,13 @@ class LiveRunnerTests(LiveControlFixture):
         self.add('second')
         self.assertEqual(runner.main(), 0)
         saved = self.state.path.read_bytes()
-        applied = self.request()[1]['lastAppliedOn']
+        applied = self.request()[1]['lastSubmittedOn']
         self.public_ip.return_value = IPv4Address('1.1.1.1')
         self.dns.side_effect = [None, ValueError('test provider failure')]
         self.assertEqual(runner.main(), 1)
         failed = self.request()[1]
         self.assertEqual(self.state.path.read_bytes(), saved)
-        self.assertEqual(failed['lastAppliedOn'], applied)
+        self.assertEqual(failed['lastSubmittedOn'], applied)
         self.assertIn('test provider failure', failed['lastError'])
         self.assertTrue(any('DNS update failed' in entry['message'] and
                             'test provider failure' in entry['message'] for entry in failed['messages']))
@@ -129,11 +129,11 @@ class LiveRunnerTests(LiveControlFixture):
         self.assertEqual(runner.main(), 0)
         recovered = self.request()[1]
         self.assertIsNone(recovered['lastError'])
-        self.assertTrue(all(row['status'] == 'Current' for row in recovered['records']))
+        self.assertTrue(all(row['status'] == 'Submitted' for row in recovered['records']))
         db = self.open_database()
         try:
             self.assertEqual(db.query('SELECT status, completed FROM ChangeRequest WHERE id=%s', (pending,)),
-                             [{'status': 'implemented', 'completed': 1}])
+                             [{'status': 'submitted', 'completed': 0}])
         finally:
             db.close()
 
@@ -225,13 +225,13 @@ raise SystemExit(runner.main())
         deadline = time.monotonic() + 10
         while True:
             snapshot = self.request()[1]
-            if snapshot['records'][0]['status'] == 'Current':
+            if snapshot['records'][0]['status'] == 'Submitted':
                 break
             if time.monotonic() >= deadline:
                 self.fail('Immediate runner did not update the saved hostname')
             time.sleep(0.05)
         self.assertEqual(dns_calls.read_text(), 'immediate')
-        self.assertIn('implemented', self.dns_history(snapshot)[0]['message'])
+        self.assertIn('submitted', self.dns_history(snapshot)[0]['message'])
         self.assertTrue(any(entry['source'] == 'bmdynip.activity.UpdatePublicIp' and
-                            'DNS update succeeded' in entry['message'] for entry in snapshot['messages']))
+                            'DNS update submitted' in entry['message'] for entry in snapshot['messages']))
         self.assertTrue(self.state.path.exists())
