@@ -4,8 +4,9 @@ title: Database schema
 
 [Documentation index]({{ site.baseurl }}{% link index.md %})
 
-`schema/bmdynip-schema-v1.sql` defines the fresh MariaDB schema. It is not yet
-connected to the installer, Web UI, or updater.
+`schema/bmdynip-schema-v1.sql` defines the MariaDB schema used by the updater and
+Web UI APIs. The [installer]({{ site.baseurl }}{% link pages/installation.md %})
+applies it during installation and upgrades, retaining existing records.
 
 The model follows [OMG CWM 1.1](https://www.omg.org/spec/CWM/1.1/PDF/),
 sections 5.7 and 16.3–16.4, with CMDB's storage customizations. Model elements
@@ -29,14 +30,19 @@ allows one value per attached tag. DNS records are application data in
 delete its change history. `DnsRecord.address` is nullable until an address has
 been successfully applied to that record.
 
+`ApplicationMigration` records completed installation migrations independently
+of CWM. The JSON hostname import saves its completion marker and DNS records in
+one transaction, so failed imports can be retried and later upgrades preserve
+Web UI deletions.
+
 `ModelElementChangeRequest` associates requests with affected model elements.
 Its `position` column stores each element's ordered request collection. Multiple
 affected elements remain possible; one request still describes only one DNS
 record. Self-association and a completion date on an incomplete request are
 rejected by database constraints. Status remains a string as defined by CWM.
 
-The future domain database interface must create the request, at least one
-affected-element association, and its hostname tag in one transaction. Ordinary
+The updater creates each request, its affected-element association, and its
+hostname tag in one transaction. Ordinary
 foreign keys cannot enforce the minimum association count or required tag on
 the parent row. External DNS names and public IPv4 addresses must be validated
 at the application boundary. Store change-request dates in UTC.
@@ -47,3 +53,14 @@ MariaDB instance:
 ```sh
 BMDYNIP_TEST_DB_SOCKET=/path/to/test.sock python3 -m unittest discover -s tests -p test_schema.py -v
 ```
+
+With the Python requirements installed, run the full suite, including browser
+checks, against a disposable MariaDB instance and an installed Chrome binary:
+
+```sh
+BMDYNIP_TEST_DB_SOCKET=/path/to/test.sock BMDYNIP_TEST_CHROME=/path/to/chrome python3 -m unittest discover -s tests -v
+```
+
+The tests create and remove temporary databases and accounts; DNS calls are
+simulated. Database and browser checks are skipped when their environment
+variables are absent.

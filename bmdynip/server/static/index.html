@@ -24,20 +24,21 @@
     </div>
   </header>
   <main>
-    <div class="preview-notice"><span class="badge">UI preview</span><p>Hostname controls show sample data. The runner schedule controls the installed cron job.</p></div>
     <section class="control-panel" id="system-status" aria-labelledby="status-heading">
       <img class="control-logo" src="/pages/images/bmdynip-logo.png" alt="Bear &amp; Moose Dynamic DNS" width="1254" height="1254">
       <div class="control-settings">
-        <div class="panel-heading"><h1 id="status-heading">System status</h1><span class="badge badge-idle">Not connected</span></div>
-        <p class="note introduction">Dynamic IPv4 records for <strong>osoyalce.com</strong></p>
+        <div class="panel-heading"><h1 id="status-heading">System status</h1><span id="connection-status" class="badge badge-idle">Connecting…</span></div>
+        <p class="note introduction">Dynamic IPv4 records for <strong class="domain-name">the configured domain</strong></p>
         <dl class="status-values">
-          <div><dt>Public IPv4</dt><dd><code>203.0.113.42</code> <span class="note">(sample)</span></dd></div>
+          <div><dt>Public IPv4</dt><dd><code id="public-ip">Loading…</code></dd></div>
           <div><dt>DNS provider</dt><dd>GoDaddy</dd></div>
           <div><dt>Update worker</dt><dd><a href="#runner-schedule">View runner schedule</a></dd></div>
-          <div><dt>Last IP check</dt><dd>Awaiting first check</dd></div>
-          <div><dt>Last DNS update</dt><dd>Awaiting first update</dd></div>
-          <div><dt>Managed names</dt><dd id="hostname-count">1 sample hostname</dd></div>
+          <div><dt>Last IP check</dt><dd><time id="last-ip-check">Loading…</time></dd></div>
+          <div><dt>Last DNS update</dt><dd><time id="last-dns-update">Loading…</time></dd></div>
+          <div><dt>Managed names</dt><dd id="hostname-count">Loading…</dd></div>
+          <div id="worker-error-row" hidden><dt>Last updater error</dt><dd id="worker-error"></dd></div>
         </dl>
+        <p id="connection-message" class="feedback" role="status" aria-live="polite">Loading live status…</p>
       </div>
     </section>
     <section class="panel" id="runner-schedule" aria-labelledby="schedule-heading">
@@ -62,39 +63,39 @@
     </section>
     <section class="panel" id="hostnames" aria-labelledby="hostnames-heading">
       <div class="panel-heading"><h2 id="hostnames-heading">Hostnames</h2><span class="badge">A records</span></div>
-      <p class="note">Each hostname points to this system’s public IPv4 address.</p>
+      <p class="note">The runner updates managed hostnames to this system’s public IPv4 address on its next execution.</p>
       <form id="add-hostname" novalidate>
         <label for="hostname">New hostname
-          <span class="hostname-input"><input id="hostname" name="hostname" type="text" placeholder="e.g. wintermute" required maxlength="63" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="hostname-help hostname-feedback"><span class="domain-suffix">.osoyalce.com</span></span>
+          <span class="hostname-input"><input id="hostname" name="hostname" type="text" placeholder="e.g. wintermute" required maxlength="63" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="hostname-help hostname-feedback" disabled><span id="domain-suffix" class="domain-suffix">Loading…</span></span>
         </label>
-        <button type="submit" class="primary">Add hostname</button>
+        <button type="submit" class="primary" disabled>Add hostname</button>
       </form>
       <p class="note" id="hostname-help">Enter one label using letters, numbers, and hyphens. Start and end with a letter or number.</p>
       <p id="hostname-feedback" class="feedback" role="status" aria-live="polite"></p>
       <div class="table-wrap" tabindex="0" role="region" aria-label="Managed A records">
         <table class="hostnames-table">
           <thead><tr><th scope="col">Hostname</th><th scope="col">Type</th><th scope="col">IPv4 address</th><th scope="col">Status</th><th scope="col" class="actions">Actions</th></tr></thead>
-          <tbody id="hostname-rows"><tr><td><code>wintermute.osoyalce.com</code></td><td>A</td><td><code>203.0.113.42</code></td><td><span class="badge badge-idle">Sample</span></td><td class="actions"><button type="button" disabled>Delete</button></td></tr></tbody>
+          <tbody id="hostname-rows"><tr><td colspan="5">Loading hostnames…</td></tr></tbody>
         </table>
       </div>
-      <noscript><p class="note">Enable JavaScript to try adding and deleting sample hostnames.</p></noscript>
+      <noscript><p class="note">Enable JavaScript to view live status and manage hostnames.</p></noscript>
     </section>
     <section class="panel" id="activity" aria-labelledby="activity-heading">
-      <div class="panel-heading"><h2 id="activity-heading">Status messages</h2><span class="note">Current preview session</span></div>
+      <div class="panel-heading"><h2 id="activity-heading">Status messages</h2><span class="note">Latest 100 DNS changes</span></div>
       <div class="table-wrap activity-wrap" tabindex="0" role="region" aria-label="Status message history">
         <table class="activity-table">
           <thead><tr><th scope="col">Time (local)</th><th scope="col">Source</th><th scope="col">Message</th></tr></thead>
-          <tbody id="activity-rows"><tr><td>—</td><td>UI</td><td>Sample interface ready. DNS updates are not connected.</td></tr></tbody>
+          <tbody id="activity-rows"><tr><td colspan="3">Loading DNS change history…</td></tr></tbody>
         </table>
       </div>
     </section>
-    <footer>Bear &amp; Moose Dynamic DNS <span>osoyalce.com</span></footer>
+    <footer>Bear &amp; Moose Dynamic DNS <span class="domain-name">Configured domain</span></footer>
   </main>
   <dialog id="delete-dialog" aria-labelledby="delete-heading" aria-describedby="delete-description">
     <form method="dialog">
       <h2 id="delete-heading">Delete hostname?</h2>
-      <p id="delete-description">Remove <strong id="delete-name"></strong> from this preview?</p>
-      <p class="note">Once DNS is connected, Delete will also remove its GoDaddy A record.</p>
+      <p id="delete-description">Stop managing <strong id="delete-name"></strong>?</p>
+      <p class="note">Its existing GoDaddy A record and DNS change history will be retained.</p>
       <div class="dialog-actions"><button value="cancel" autofocus>Cancel</button><button id="confirm-delete" value="delete" class="danger">Delete hostname</button></div>
     </form>
   </dialog>

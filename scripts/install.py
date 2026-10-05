@@ -10,7 +10,7 @@ import sys
 import tempfile
 import time
 import venv
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.request import ProxyHandler, Request, build_opener
 import zipapp
 
@@ -21,6 +21,7 @@ from bmdynip.constants.DBMDynIP import DBMDynIP
 from bmdynip.interface.Configuration import Configuration
 from bmdynip.interface.Credentials import Credentials
 from bmdynip.interface.IpState import IpState
+from bmdynip.interface.DatabaseProvisioning import DatabaseProvisioning
 
 
 def systemctl(*arguments: str) -> None:
@@ -30,7 +31,7 @@ def systemctl(*arguments: str) -> None:
 def start_web(action: str) -> None:
     service = Path(DBMDynIP.WEB_SERVICE_FILE).name
     systemctl(action, service)
-    url = f"http://127.0.0.1:{DBMDynIP.WEB_PORT}/"
+    url = f"http://127.0.0.1:{DBMDynIP.WEB_PORT}{DBMDynIP.WEB_READY_PATH}"
     opener = build_opener(ProxyHandler({}))
     deadline = time.monotonic() + 10
     while True:
@@ -47,9 +48,21 @@ def start_web(action: str) -> None:
                 raise ValueError(f"Web UI service did not become active; check "
                                  f"journalctl -u {service}.") from None
             time.sleep(0.1)
+        except HTTPError as error:
+            status = error.code
+            error.close()
+            if status != 503:
+                raise ValueError(f"Web UI readiness returned HTTP {status} on port "
+                                 f"{DBMDynIP.WEB_PORT}; check journalctl -u {service}.") from None
+            if time.monotonic() >= deadline:
+                raise ValueError(f"Web UI database readiness timed out on port {DBMDynIP.WEB_PORT}; "
+                                 f"check database availability, credentials, and schema, and "
+                                 f"journalctl -u {service}.") from None
+            time.sleep(0.1)
         except (URLError, TimeoutError):
             if time.monotonic() >= deadline:
-                raise ValueError(f"Web UI did not respond on port {DBMDynIP.WEB_PORT}.") from None
+                raise ValueError(f"Web UI readiness did not respond on port {DBMDynIP.WEB_PORT}; "
+                                 f"check journalctl -u {service}.") from None
             time.sleep(0.1)
     print(f"BMDynIP Web UI: active on port {DBMDynIP.WEB_PORT} (listening on {DBMDynIP.WEB_HOST})")
 
@@ -88,15 +101,34 @@ def install_dependencies(target: Path) -> None:
         )
 
 
+def migrate_configuration(config: Path) -> None:
+    # The installer calls this with the staged dependencies on sys.path.
+    from pymysql import MySQLError
+    from bmdynip.app.database import open_database
+    from bmdynip.interface.DnsRecordDb import DnsRecordDb
+
+    records = Configuration.load(config)
+    try:
+        db = open_database()
+        try:
+            DnsRecordDb(db).import_configuration(records)
+        finally:
+            db.close()
+    except MySQLError:
+        raise ValueError('Could not migrate configured hostnames. Check database availability '
+                         'and credentials, then rerun installation or upgrade.') from None
+
+
 def install(*, upgrading: bool = False) -> None:
     for executable in ("/usr/bin/python3", "/usr/bin/curl", "/usr/bin/logger",
-                       DBMDynIP.GODADDY_CLI, DBMDynIP.SYSTEMCTL):
+                       DBMDynIP.GODADDY_CLI, DBMDynIP.SYSTEMCTL, DBMDynIP.MARIADB):
         if not os.access(executable, os.X_OK):
             raise ValueError(f"Required executable is missing: {executable}")
     root = Path(DBMDynIP.INSTALL_DIR)
     config = root / "conf" / "bmdynip.json"
     Configuration.load(config if config.exists() else REPOSITORY / "conf" / "bmdynip.json")
     Credentials.provision(Path(DBMDynIP.CREDENTIALS_FILE), read_token)
+    DatabaseProvisioning(REPOSITORY / "schema/bmdynip-schema-v1.sql").provision()
     for name in ("bin", "conf", "data"):
         (root / name).mkdir(parents=True, exist_ok=True)
         (root / name).chmod(0o700 if name != "bin" else 0o755)
@@ -111,6 +143,11 @@ def install(*, upgrading: bool = False) -> None:
                             ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
             shutil.copyfile(REPOSITORY / "pages/images/bmdynip-logo.png",
                             staged / "bmdynip/server/static/bmdynip-logo.png")
+            sys.path.insert(0, str(staged))
+            try:
+                migrate_configuration(config)
+            finally:
+                sys.path.remove(str(staged))
             if upgrading:
                 systemctl("stop", Path(DBMDynIP.WEB_SERVICE_FILE).name)
             (staged / "__main__.py").write_text(
@@ -155,7 +192,7 @@ def install(*, upgrading: bool = False) -> None:
         restart()
     print(f"Installed BMDynIP {DBMDynIP.VERSION}; runner schedule: "
           f"{'enabled' if schedule['enabled'] else 'disabled'}; {schedule['expression']}.")
-    print(f"Configure DNS names in {config}. Existing configuration and data were preserved.")
+    print(f"Manage DNS names in the Web UI. Existing configuration and data were preserved.")
 
 
 def upgrade() -> None:

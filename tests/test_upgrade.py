@@ -93,6 +93,33 @@ class UpgradeDeploymentTests(unittest.TestCase):
         self.stack.enter_context(patch.object(RunnerSchedule, "_require_root"))
         self.dependencies = self.stack.enter_context(
             patch.object(installer, "install_dependencies", side_effect=self.stage_dependency))
+        self.database = self.stack.enter_context(patch.object(installer.DatabaseProvisioning, "provision"))
+        self.migration = self.stack.enter_context(patch.object(installer, "migrate_configuration"))
+
+    def test_migration_failure_leaves_service_and_executables_untouched(self):
+        self.migration.side_effect = ValueError("Could not migrate configured hostnames")
+        root = Path(DBMDynIP.INSTALL_DIR)
+        (root / "bin").mkdir(parents=True)
+        web = root / "bin/bmdynip-web"
+        web.write_bytes(b"old executable")
+        with patch.object(installer.Credentials, "provision"), self.assertRaisesRegex(ValueError, "migrate"):
+            installer.upgrade()
+        self.control.assert_not_called()
+        self.assertEqual(web.read_bytes(), b"old executable")
+        self.assertFalse(Path(DBMDynIP.CRON_FILE).exists())
+
+    def test_database_failure_leaves_service_and_executables_untouched(self):
+        self.database.side_effect = ValueError("Database unavailable")
+        root = Path(DBMDynIP.INSTALL_DIR)
+        (root / "bin").mkdir(parents=True)
+        web = root / "bin/bmdynip-web"
+        web.write_bytes(b"old executable")
+        with patch.object(installer.Credentials, "provision"), self.assertRaisesRegex(ValueError, "Database"):
+            installer.upgrade()
+        self.control.assert_not_called()
+        self.dependencies.assert_not_called()
+        self.assertEqual(web.read_bytes(), b"old executable")
+        self.assertFalse(Path(DBMDynIP.CRON_FILE).exists())
 
     @staticmethod
     def stage_dependency(target):
@@ -119,6 +146,7 @@ class UpgradeDeploymentTests(unittest.TestCase):
         def control(action, *arguments):
             if action == "stop":
                 self.assertEqual(web.read_bytes(), b"old executable")
+                self.migration.assert_called_once_with(config)
             if action == "start":
                 self.assertTrue(zipfile.is_zipfile(web))
                 self.assertTrue(Path(DBMDynIP.CRON_FILE).exists())
@@ -141,6 +169,9 @@ class UpgradeDeploymentTests(unittest.TestCase):
                 self.assertIn("pymysql/__init__.py", bundle.namelist())
                 self.assertIn("crontab.py", bundle.namelist())
                 self.assertIn("bmdynip/server/static/bmdynip-logo.png", bundle.namelist())
+                self.assertIn("bmdynip/server/static/api.js", bundle.namelist())
+                self.assertIn("bmdynip/server/static/ui.js", bundle.namelist())
+                self.assertNotIn("bmdynip/server/static/demo.js", bundle.namelist())
             result = subprocess.run([str(archive), "--help"], text=True, capture_output=True, timeout=10)
             self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(config.stat().st_mode & 0o777, 0o600)

@@ -16,6 +16,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-04 @ 22:02
+
+### Added
+
+- Import existing JSON hostnames into MariaDB once during installation or upgrade,
+  preserving later Web UI changes and the original configuration file.
+- Connect the Web UI to persistent hostname management, live system status,
+  and database-backed DNS change history, with automatic status refresh.
+- Provision the local MariaDB database and account, save protected database
+  credentials, and apply the schema during installation and upgrades.
+- Retain existing database credentials and records when reapplying the schema.
+
+### Fixed
+
+- Wait for database-backed Web UI readiness during installation, upgrades, and
+  restarts; report unavailable credentials, schema, or database instead of success.
+- Update running and uninstall guidance for database-backed hostname management,
+  live status, and retained database records.
+
 ## [1.3.0] - 2026-10-04 @ 20:37
 
 ### Added

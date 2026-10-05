@@ -1,13 +1,20 @@
-import {demo} from './demo.js';
+import {ApiError, snapshot, addRecord, removeRecord} from './api.js';
 
 const form = document.getElementById('add-hostname');
 const input = document.getElementById('hostname');
+const addButton = form.querySelector('button');
 const feedback = document.getElementById('hostname-feedback');
 const rows = document.getElementById('hostname-rows');
 const activity = document.getElementById('activity-rows');
 const dialog = document.getElementById('delete-dialog');
+const connection = document.getElementById('connection-status');
+const connectionMessage = document.getElementById('connection-message');
 let deleting = null;
 let deleteTrigger = null;
+let current = null;
+let ready = false;
+let busy = false;
+let mutating = false;
 
 function cell(row, value) {
   const td = document.createElement('td');
@@ -23,24 +30,52 @@ function code(value) {
   return node;
 }
 
-function message(value, error = false) {
+function message(value, error = false, invalid = false) {
   feedback.textContent = value;
   feedback.classList.toggle('error', error);
-  input.setAttribute('aria-invalid', String(error));
+  input.setAttribute('aria-invalid', String(invalid));
 }
 
-function render() {
-  const {records, messages} = demo.snapshot();
-  document.getElementById('hostname-count').textContent = `${records.length} sample hostname${records.length === 1 ? '' : 's'}`;
+function controls() {
+  addButton.disabled = !ready || busy;
+  input.disabled = !ready || mutating;
+  for (const button of rows.querySelectorAll('button')) button.disabled = !ready || busy;
+}
+
+function time(node, value, fallback) {
+  if (value) {
+    node.dateTime = value;
+    node.textContent = new Date(value).toLocaleString();
+  } else {
+    node.removeAttribute('datetime');
+    node.textContent = fallback;
+  }
+}
+
+function render(data) {
+  current = data;
+  const {records, messages} = data;
+  for (const node of document.querySelectorAll('.domain-name')) node.textContent = data.domain;
+  document.getElementById('domain-suffix').textContent = `.${data.domain}`;
+  document.getElementById('public-ip').textContent = data.publicIp || 'Awaiting first check';
+  time(document.getElementById('last-ip-check'), data.lastCheckedOn, 'Awaiting first check');
+  time(document.getElementById('last-dns-update'), data.lastAppliedOn, 'Awaiting first update');
+  document.getElementById('worker-error-row').hidden = !data.lastError;
+  document.getElementById('worker-error').textContent = data.lastError || '';
+  document.getElementById('hostname-count').textContent = `${records.length} hostname${records.length === 1 ? '' : 's'}`;
+  connection.textContent = data.lastError ? 'Update failed' : 'Connected';
+  connection.classList.toggle('badge-error', Boolean(data.lastError));
+  connectionMessage.textContent = 'Live status refreshes every five seconds.';
+  connectionMessage.classList.remove('error');
   rows.replaceChildren();
   for (const record of records) {
     const row = document.createElement('tr');
     cell(row, code(record.hostname));
     cell(row, 'A');
-    cell(row, code(record.address));
+    cell(row, record.address ? code(record.address) : 'Awaiting update');
     const badge = document.createElement('span');
     badge.className = 'badge badge-idle';
-    badge.textContent = 'Sample';
+    badge.textContent = record.status;
     cell(row, badge);
     const button = document.createElement('button');
     button.type = 'button';
@@ -74,18 +109,72 @@ function render() {
     cell(row, entry.message);
     activity.append(row);
   }
+  if (!messages.length) {
+    const row = document.createElement('tr');
+    const td = cell(row, 'No DNS change history yet.');
+    td.colSpan = 3;
+    td.className = 'empty-state';
+    activity.append(row);
+  }
 }
 
-form.addEventListener('submit', event => {
-  event.preventDefault();
+async function loadSnapshot() {
   try {
-    const name = demo.add(input.value);
-    render();
-    input.value = '';
-    message(`Added ${name}.osoyalce.com to the preview.`);
+    render(await snapshot());
+    ready = true;
+    return true;
   } catch (error) {
-    message(error.message, true);
+    if (!(error instanceof ApiError)) throw error;
+    ready = false;
+    connection.textContent = 'Unavailable';
+    connection.classList.add('badge-error');
+    connectionMessage.textContent = `${error.message} ` +
+      (current ? 'Displayed values may be out of date. Retrying…' : 'Retrying…');
+    connectionMessage.classList.add('error');
+    return false;
   }
+}
+
+async function refresh() {
+  if (busy || deleting || dialog.open) return;
+  busy = true;
+  controls();
+  try {
+    await loadSnapshot();
+  } finally {
+    busy = false;
+    controls();
+  }
+}
+
+async function changeRecord(operation, success, afterSave = () => {}) {
+  if (busy || !ready) return;
+  busy = mutating = true;
+  controls();
+  message('Saving…');
+  try {
+    await operation();
+    afterSave();
+    const refreshed = await loadSnapshot();
+    message(success + (refreshed ? '' : ' Saved, but live status could not be refreshed. Retrying…'));
+  } catch (error) {
+    if (!(error instanceof ApiError)) throw error;
+    message(error.status === null
+      ? `${error.message} Check the hostname list after it refreshes before retrying.`
+      : error.message, true, error.status === 400);
+    await loadSnapshot();
+  } finally {
+    busy = mutating = false;
+    controls();
+  }
+}
+
+form.addEventListener('submit', async event => {
+  event.preventDefault();
+  const name = input.value.trim().toLowerCase();
+  if (!current) return;
+  await changeRecord(() => addRecord(name), `Added ${name}.${current.domain}. It will be updated on the next runner execution.`,
+    () => { input.value = ''; });
   input.focus();
 });
 
@@ -95,21 +184,18 @@ input.addEventListener('input', () => {
   feedback.textContent = '';
 });
 
-dialog.addEventListener('close', () => {
-  if (dialog.returnValue === 'delete' && deleting) {
-    try {
-      demo.remove(deleting.name);
-      render();
-      message(`Deleted ${deleting.hostname} from the preview.`);
-    } catch (error) {
-      message(error.message, true);
-    }
+dialog.addEventListener('close', async () => {
+  const record = deleting;
+  const confirmed = dialog.returnValue === 'delete';
+  deleting = null;
+  dialog.returnValue = '';
+  if (confirmed && record) {
+    await changeRecord(() => removeRecord(record.id), `Stopped managing ${record.hostname}. Its GoDaddy record was retained.`);
     input.focus();
   } else {
     deleteTrigger?.focus();
   }
-  deleting = null;
-  dialog.returnValue = '';
 });
 
-render();
+refresh();
+setInterval(refresh, 5000);
