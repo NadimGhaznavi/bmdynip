@@ -244,6 +244,9 @@ class InstallationTests(TemporaryFiles):
         database = patch.object(installer.DatabaseProvisioning, "provision")
         database.start()
         self.addCleanup(database.stop)
+        migration = patch.object(installer, "migrate_configuration")
+        migration.start()
+        self.addCleanup(migration.stop)
 
     @staticmethod
     def stage_dependencies(target):

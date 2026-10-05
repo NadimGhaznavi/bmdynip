@@ -89,6 +89,24 @@ def install_dependencies(target: Path) -> None:
         )
 
 
+def migrate_configuration(config: Path) -> None:
+    # The installer calls this with the staged dependencies on sys.path.
+    from pymysql import MySQLError
+    from bmdynip.app.database import open_database
+    from bmdynip.interface.DnsRecordDb import DnsRecordDb
+
+    records = Configuration.load(config)
+    try:
+        db = open_database()
+        try:
+            DnsRecordDb(db).import_configuration(records)
+        finally:
+            db.close()
+    except MySQLError:
+        raise ValueError('Could not migrate configured hostnames. Check database availability '
+                         'and credentials, then rerun installation or upgrade.') from None
+
+
 def install(*, upgrading: bool = False) -> None:
     for executable in ("/usr/bin/python3", "/usr/bin/curl", "/usr/bin/logger",
                        DBMDynIP.GODADDY_CLI, DBMDynIP.SYSTEMCTL, DBMDynIP.MARIADB):
@@ -113,6 +131,11 @@ def install(*, upgrading: bool = False) -> None:
                             ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
             shutil.copyfile(REPOSITORY / "pages/images/bmdynip-logo.png",
                             staged / "bmdynip/server/static/bmdynip-logo.png")
+            sys.path.insert(0, str(staged))
+            try:
+                migrate_configuration(config)
+            finally:
+                sys.path.remove(str(staged))
             if upgrading:
                 systemctl("stop", Path(DBMDynIP.WEB_SERVICE_FILE).name)
             (staged / "__main__.py").write_text(
@@ -157,7 +180,7 @@ def install(*, upgrading: bool = False) -> None:
         restart()
     print(f"Installed BMDynIP {DBMDynIP.VERSION}; runner schedule: "
           f"{'enabled' if schedule['enabled'] else 'disabled'}; {schedule['expression']}.")
-    print(f"Configure DNS names in {config}. Existing configuration and data were preserved.")
+    print(f"Manage DNS names in the Web UI. Existing configuration and data were preserved.")
 
 
 def upgrade() -> None:

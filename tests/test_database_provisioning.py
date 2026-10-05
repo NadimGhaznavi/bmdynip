@@ -225,7 +225,7 @@ class ProvisioningIntegrationTests(unittest.TestCase):
         credentials = self.credentials.read_bytes()
         db = DbMgr(DatabaseEnvironment.read(self.credentials))
         try:
-            self.assertEqual(len(db.query("SHOW TABLES")), 14)
+            self.assertEqual(len(db.query("SHOW TABLES")), 15)
             db.execute("INSERT INTO DnsRecord (domain, name) VALUES (%s,%s)", ("example.com", "home"))
             identity = db.insert("INSERT INTO ModelElement (name) VALUES (%s)", ("history",))
             db.execute("INSERT INTO ChangeRequest (id, changeDescription, changeReason, status, requestDate) "

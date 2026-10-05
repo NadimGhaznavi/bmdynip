@@ -57,7 +57,7 @@ The installer creates:
 | `/opt/prod/bmdynip/bin/bmdynip` | Executable Python archive containing the application |
 | `/opt/prod/bmdynip/bin/bmdynip-web` | Web UI executable with bundled assets |
 | `/etc/systemd/system/bmdynip-web.service` | Web UI service enabled at boot |
-| `/opt/prod/bmdynip/conf/bmdynip.json` | Domain and relative A-record names |
+| `/opt/prod/bmdynip/conf/bmdynip.json` | Domain and legacy hostname configuration |
 | `/opt/prod/bmdynip/data/` | Last successful update and process lock |
 | `/etc/bmdynip/auto.env` | Root GoDaddy PAT; directory mode `0700`, file mode `0600` |
 | `/etc/bmdynip/database.env` | Root-owned MariaDB credentials, mode `0600` |
@@ -70,7 +70,7 @@ Existing custom or disabled schedules are retained. Change the schedule in the
 It starts the [Web UI]({{ site.baseurl }}{% link pages/web-interface.md %})
 on port `49700` and prints its status after checking HTTP readiness.
 The supplied hostname list is empty, so the job makes no DNS changes until
-you populate it. Follow the [configuration guide]({{ site.baseurl }}{% link pages/configuration.md %}),
+you add managed names. Follow the [configuration guide]({{ site.baseurl }}{% link pages/configuration.md %}),
 then see [running and monitoring]({{ site.baseurl }}{% link pages/running.md %}).
 
 ## Upgrade
@@ -86,3 +86,7 @@ This stops the Web UI, replaces the executables and cron job while preserving
 configuration, saved state, and credentials, then starts the Web UI and prints
 its status and port after checking readiness. If deployment fails after the
 service stops, fix the reported error and rerun the upgrade.
+
+Existing JSON hostnames are imported into MariaDB once before deployment.
+The source file is preserved; later upgrades retain hostname changes made in
+the Web UI. A failed import rolls back and can be retried by rerunning the script.

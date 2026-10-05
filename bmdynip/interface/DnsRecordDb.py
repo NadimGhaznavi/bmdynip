@@ -28,7 +28,14 @@ class DnsRecordDb:
     def remove(self, identity: int) -> bool:
         return bool(self.db.execute('DELETE FROM DnsRecord WHERE id=%s', (identity,)))
 
-    def import_configuration(self, records: tuple[DnsRecord, ...]) -> None:
-        for record in records:
-            self.db.execute('INSERT INTO DnsRecord (domain, name) VALUES (%s,%s) '
-                            'ON DUPLICATE KEY UPDATE name=VALUES(name)', (record.domain, record.name))
+    def import_configuration(self, records: tuple[DnsRecord, ...]) -> bool:
+        """Import validated legacy names once; retain UI edits on later installs."""
+        with self.db.transaction():
+            claimed = self.db.execute('INSERT IGNORE INTO ApplicationMigration (name) VALUES (%s)',
+                                      ('json-hostnames-v1',))
+            if not claimed:
+                return False
+            for record in records:
+                self.db.execute('INSERT INTO DnsRecord (domain, name) VALUES (%s,%s) '
+                                'ON DUPLICATE KEY UPDATE name=VALUES(name)', (record.domain, record.name))
+        return True
