@@ -36,6 +36,55 @@ try {
   assert(contains('failed.example.test') && node('#hostname-rows').textContent.includes('Not found'), 'Missing DNS record is shown');
   assert(!node('#worker-error-row').hidden && node('#worker-error').textContent.includes('Provider unavailable'), 'Last worker error is displayed');
   assert(!node('#worker-error img') && !node('#activity-rows img') && !frame.contentWindow.injected, 'Error text is rendered as text');
+  const view = frame.contentWindow;
+  const pollingFetch = view.fetch.bind(view);
+  const existingRow = node('#hostname-rows').firstElementChild;
+  const existingButton = existingRow.querySelector('button');
+  const existingBadge = existingRow.querySelector('[data-dns-id]');
+  const historyRow = node('#activity-rows').firstElementChild;
+  const historyText = historyRow.cells[2].firstChild;
+  const mutations = [];
+  const observer = new view.MutationObserver(changes => mutations.push(...changes));
+  for (const target of [node('#hostname-rows'), node('#activity-rows'), node('#add-hostname'),
+    node('#public-ip'), node('#last-ip-check'), node('#connection-status')]) {
+    observer.observe(target, {subtree: true, childList: true, characterData: true, attributes: true});
+  }
+  existingButton.focus();
+  node('#hostname').value = 'unsaved';
+  let polls = 0;
+  view.fetch = async (path, options) => {
+    const response = await pollingFetch(path, options);
+    if (path === '/api/snapshot') polls++;
+    return response;
+  };
+  await wait(() => polls >= 2, 'two unchanged background polls');
+  await new Promise(resolve => setTimeout(resolve, 100));
+  assert(mutations.length === 0, 'Unchanged polling makes no table, summary, or control DOM changes');
+  assert(doc().activeElement === existingButton && node('#hostname').value === 'unsaved',
+    'Polling preserves keyboard focus and unsaved input');
+  view.fetch = async (path, options) => {
+    const response = await pollingFetch(path, options);
+    if (path === '/api/snapshot') {
+      const values = await response.json();
+      values.messages[0].message = 'Changed status message';
+      return new view.Response(JSON.stringify(values), {status: 200});
+    }
+    if (path === `/api/records/${existingBadge.dataset.dnsId}/dns`) {
+      const values = await response.json();
+      values.status = 'Mismatch';
+      return new view.Response(JSON.stringify(values), {status: 200});
+    }
+    return response;
+  };
+  await wait(() => existingBadge.textContent === 'Mismatch' && historyText.data === 'Changed status message',
+    'changed message and DNS status');
+  assert(node('#hostname-rows').firstElementChild === existingRow &&
+    node('#activity-rows').firstElementChild === historyRow && historyRow.cells[2].firstChild === historyText,
+    'Changed status text retains existing rows and text nodes');
+  assert(!mutations.some(change => change.type === 'childList'), 'Status changes update text without rebuilding table content');
+  observer.disconnect();
+  view.fetch = pollingFetch;
+  await wait(() => historyText.data !== 'Changed status message', 'original status restored');
   const history = [...node('#activity-rows').children].map(row => row.textContent);
   const initialCount = node('#hostname-rows').children.length;
   await add(' NewHost ');
