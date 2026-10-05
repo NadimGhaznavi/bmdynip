@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Make installed BMDynIP releases discoverable by CMDB through readable version
+  constants, updated on upgrade and removed on uninstall.
 - Refresh only changed status text every five seconds, preserving table rows,
   keyboard focus, and unfinished hostname input without flicker.
 
