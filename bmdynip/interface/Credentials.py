@@ -8,19 +8,28 @@ import stat
 import tempfile
 from typing import Callable
 
+from bmdynip.constants.DBMDynIP import DBMDynIP
+
 
 class Credentials:
     @staticmethod
-    def provision(path: Path, token_source: Callable[[], str]) -> str:
-        """Retain existing credentials or securely publish a supplied GoDaddy PAT."""
+    def godaddy() -> str:
+        """Read the installing user's protected gddy PAT source file."""
+        return Credentials.import_token(Path.home() / DBMDynIP.GODADDY_CREDENTIAL_NAME)
+
+    @staticmethod
+    def provision(path: Path, token_source: Callable[[], str], *, refresh: bool = False) -> str:
+        """Securely publish a PAT, retaining an existing copy unless refreshed."""
         if path.is_symlink() or path.parent.is_symlink():
             raise ValueError("Credential file and directory must not be symlinks.")
         path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         directory = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
         try:
             fcntl.flock(directory, fcntl.LOCK_EX)
-            if path.exists():
+            if path.exists() and not refresh:
                 return Credentials.load(path)
+            if path.exists():
+                Credentials._read(path)
             info = os.fstat(directory)
             if info.st_uid != os.geteuid():
                 raise ValueError(f"{path.parent} must belong to the current user.")
@@ -35,7 +44,10 @@ class Credentials:
                     output.write(f"GDDY_PAT={token}\n")
                     output.flush()
                     os.fsync(output.fileno())
-                os.link(temporary, path)
+                if refresh:
+                    os.replace(temporary, path)
+                else:
+                    os.link(temporary, path)
             finally:
                 Path(temporary).unlink(missing_ok=True)
             return token

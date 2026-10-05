@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-10-04 @ 22:16
+
+### Fixed
+
+- Refresh installed GoDaddy credentials from `$HOME/.godaddy-cli` during
+  installation and upgrades; normal runtime continues to use `/etc/bmdynip/auto.env`.
+
 ## [1.4.0] - 2026-10-04 @ 22:02
 
 ### Added
