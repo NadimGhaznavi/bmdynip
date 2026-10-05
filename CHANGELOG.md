@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `scripts/upgrade.sh` to redeploy BMDynIP and restart the Web UI while
+  preserving configuration, saved state, and credentials.
+
 ## [1.1.0] - 2026-10-04 @ 19:58
 
 ### Added
