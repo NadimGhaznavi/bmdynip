@@ -16,9 +16,12 @@ the production host. Run repository commands from your BMDynIP checkout.
 
 ## Install
 
-The host needs Linux with systemd, Python 3.10 or newer, curl, logger, a running cron daemon,
-and `/opt/prod/godaddy-cli/gddy`. No Python dependencies or virtual environment
-are needed.
+The host needs Linux with systemd, Python 3.10 or newer with venv support, curl,
+logger, a running cron daemon, and `/opt/prod/godaddy-cli/gddy`.
+On Debian or Ubuntu, install `python3-venv`. Installation and upgrades require
+access to the Python package index to install `requirements.txt` into both
+executable archives. PyMySQL is bundled; no global Python package installation
+is needed.
 
 The installer reuses the root-owned, mode `0600` PAT file `/root/.godaddy-cli`
 when `/etc/bmdynip/auto.env` is missing. If you do not already have a PAT,
