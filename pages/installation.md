@@ -55,15 +55,15 @@ The supplied hostname list is empty, so the job makes no DNS changes until
 you populate it. Follow the [configuration guide]({{ site.baseurl }}{% link pages/configuration.md %}),
 then see [running and monitoring]({{ site.baseurl }}{% link pages/running.md %}).
 
-## Reinstall after an update
+## Upgrade
 
-After pulling a release, rerun the installer as root:
+After pulling a release, run the upgrade script as root:
 
 ```sh
 git pull
-./scripts/install.sh
+./scripts/upgrade.sh
 ```
 
 This replaces the executable and cron job while preserving configuration,
 saved state, and credentials. It also replaces and restarts the Web UI,
-then prints its status and port. There is no separate upgrade script.
+then prints its status and port. The upgrade script reuses the installer.
