@@ -10,7 +10,7 @@ import sys
 import tempfile
 import time
 import venv
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.request import ProxyHandler, Request, build_opener
 import zipapp
 
@@ -31,7 +31,7 @@ def systemctl(*arguments: str) -> None:
 def start_web(action: str) -> None:
     service = Path(DBMDynIP.WEB_SERVICE_FILE).name
     systemctl(action, service)
-    url = f"http://127.0.0.1:{DBMDynIP.WEB_PORT}/"
+    url = f"http://127.0.0.1:{DBMDynIP.WEB_PORT}{DBMDynIP.WEB_READY_PATH}"
     opener = build_opener(ProxyHandler({}))
     deadline = time.monotonic() + 10
     while True:
@@ -48,9 +48,21 @@ def start_web(action: str) -> None:
                 raise ValueError(f"Web UI service did not become active; check "
                                  f"journalctl -u {service}.") from None
             time.sleep(0.1)
+        except HTTPError as error:
+            status = error.code
+            error.close()
+            if status != 503:
+                raise ValueError(f"Web UI readiness returned HTTP {status} on port "
+                                 f"{DBMDynIP.WEB_PORT}; check journalctl -u {service}.") from None
+            if time.monotonic() >= deadline:
+                raise ValueError(f"Web UI database readiness timed out on port {DBMDynIP.WEB_PORT}; "
+                                 f"check database availability, credentials, and schema, and "
+                                 f"journalctl -u {service}.") from None
+            time.sleep(0.1)
         except (URLError, TimeoutError):
             if time.monotonic() >= deadline:
-                raise ValueError(f"Web UI did not respond on port {DBMDynIP.WEB_PORT}.") from None
+                raise ValueError(f"Web UI readiness did not respond on port {DBMDynIP.WEB_PORT}; "
+                                 f"check journalctl -u {service}.") from None
             time.sleep(0.1)
     print(f"BMDynIP Web UI: active on port {DBMDynIP.WEB_PORT} (listening on {DBMDynIP.WEB_HOST})")
 

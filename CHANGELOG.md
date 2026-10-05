@@ -26,6 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   credentials, and apply the schema during installation and upgrades.
 - Retain existing database credentials and records when reapplying the schema.
 
+### Fixed
+
+- Wait for database-backed Web UI readiness during installation, upgrades, and
+  restarts; report unavailable credentials, schema, or database instead of success.
+- Update running and uninstall guidance for database-backed hostname management,
+  live status, and retained database records.
+
 ## [1.3.0] - 2026-10-04 @ 20:37
 
 ### Added

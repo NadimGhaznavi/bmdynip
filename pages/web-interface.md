@@ -12,13 +12,18 @@ To restart it from the checkout as root:
 ./scripts/restart.sh
 ```
 
-The command checks that the service is active and HTTP responds, then prints:
+The command waits for an active service and a successful `/ready` database check,
+then prints:
 
 ```text
 BMDynIP Web UI: active on port 49700 (listening on 0.0.0.0)
 ```
 
 View service logs with `journalctl -u bmdynip-web.service`.
+
+`GET /ready` and `HEAD /ready` return HTTP `200` when live status and DNS history
+can be read, or `503` when the database or its configuration is unavailable.
+Installation, upgrades, and restarts wait up to ten seconds for readiness.
 
 From a development checkout with configured database credentials and domain,
 start the Web UI with Python 3.10 or newer:

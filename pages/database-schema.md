@@ -41,8 +41,8 @@ affected elements remain possible; one request still describes only one DNS
 record. Self-association and a completion date on an incomplete request are
 rejected by database constraints. Status remains a string as defined by CWM.
 
-The future domain database interface must create the request, at least one
-affected-element association, and its hostname tag in one transaction. Ordinary
+The updater creates each request, its affected-element association, and its
+hostname tag in one transaction. Ordinary
 foreign keys cannot enforce the minimum association count or required tag on
 the parent row. External DNS names and public IPv4 addresses must be validated
 at the application boundary. Store change-request dates in UTC.
@@ -53,3 +53,14 @@ MariaDB instance:
 ```sh
 BMDYNIP_TEST_DB_SOCKET=/path/to/test.sock python3 -m unittest discover -s tests -p test_schema.py -v
 ```
+
+With the Python requirements installed, run the full suite, including browser
+checks, against a disposable MariaDB instance and an installed Chrome binary:
+
+```sh
+BMDYNIP_TEST_DB_SOCKET=/path/to/test.sock BMDYNIP_TEST_CHROME=/path/to/chrome python3 -m unittest discover -s tests -v
+```
+
+The tests create and remove temporary databases and accounts; DNS calls are
+simulated. Database and browser checks are skipped when their environment
+variables are absent.

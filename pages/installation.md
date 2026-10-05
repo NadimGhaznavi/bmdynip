@@ -58,17 +58,17 @@ The installer creates:
 | `/opt/prod/bmdynip/bin/bmdynip-web` | Web UI executable with bundled assets |
 | `/etc/systemd/system/bmdynip-web.service` | Web UI service enabled at boot |
 | `/opt/prod/bmdynip/conf/bmdynip.json` | Domain and legacy hostname configuration |
-| `/opt/prod/bmdynip/data/` | Last successful update and process lock |
+| `/opt/prod/bmdynip/data/` | Last successful update cache and process lock |
 | `/etc/bmdynip/auto.env` | Root GoDaddy PAT; directory mode `0700`, file mode `0600` |
 | `/etc/bmdynip/database.env` | Root-owned MariaDB credentials, mode `0600` |
 | `/etc/cron.d/bmdynip` | Root cron job using `DBMDynIP.CRON_SCHEDULE` |
-| MariaDB `bmdynip` database | Application tables and CWM history |
+| MariaDB `bmdynip` database | Managed DNS names, live status, migration markers, and CWM history |
 
 Installation enables cron immediately. It does not run a DNS update itself.
 Existing custom or disabled schedules are retained. Change the schedule in the
 [Web UI]({{ site.baseurl }}{% link pages/web-interface.md %}#runner-schedule).
 It starts the [Web UI]({{ site.baseurl }}{% link pages/web-interface.md %})
-on port `49700` and prints its status after checking HTTP readiness.
+on port `49700` and prints its status after checking database readiness at `/ready`.
 The supplied hostname list is empty, so the job makes no DNS changes until
 you add managed names. Follow the [configuration guide]({{ site.baseurl }}{% link pages/configuration.md %}),
 then see [running and monitoring]({{ site.baseurl }}{% link pages/running.md %}).
