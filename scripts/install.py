@@ -18,7 +18,6 @@ sys.path.insert(0, str(REPOSITORY))
 
 from bmdynip.constants.DBMDynIP import DBMDynIP
 from bmdynip.interface.Configuration import Configuration
-from bmdynip.interface.Credentials import Credentials
 from bmdynip.interface.IpState import IpState
 from bmdynip.interface.DatabaseProvisioning import DatabaseProvisioning
 
@@ -70,10 +69,6 @@ def restart() -> None:
     start_web("restart")
 
 
-def read_token() -> str:
-    return Credentials.godaddy()
-
-
 def install_dependencies(target: Path) -> None:
     with tempfile.TemporaryDirectory(prefix="bmdynip-dependencies-") as directory:
         venv.EnvBuilder(with_pip=True).create(directory)
@@ -112,7 +107,6 @@ def install(*, upgrading: bool = False) -> None:
     root = Path(DBMDynIP.INSTALL_DIR)
     config = root / "conf" / "bmdynip.json"
     Configuration.load(config if config.exists() else REPOSITORY / "conf" / "bmdynip.json")
-    Credentials.provision(Path(DBMDynIP.CREDENTIALS_FILE), read_token, refresh=True)
     DatabaseProvisioning(REPOSITORY / "schema/bmdynip-schema-v1.sql").provision()
     for name in ("bin", "conf", "data"):
         (root / name).mkdir(parents=True, exist_ok=True)

@@ -135,7 +135,7 @@ class LiveMigrationTests(LiveControlFixture):
                 'GODADDY_CLI': '/usr/bin/true',
             }.items():
                 stack.enter_context(patch.object(DBMDynIP, name, value))
-            stack.enter_context(patch.object(installer.Credentials, 'provision'))
+            stack.enter_context(patch('bmdynip.interface.Credentials.Credentials.provision'))
             stack.enter_context(patch.object(DatabaseProvisioning, '_require_root'))
             stack.enter_context(patch.object(RunnerSchedule, '_require_root'))
             stack.enter_context(patch.object(installer, 'install_dependencies',

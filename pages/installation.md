@@ -24,16 +24,10 @@ access to the Python package index to install `requirements.txt` into both
 executable archives. PyMySQL is bundled; no global Python package installation
 is needed.
 
-The installer reads the root-owned, mode `0600` PAT file `$HOME/.godaddy-cli`
-(`/root/.godaddy-cli` when run as root). If you do not already have a PAT,
-generate one with `domains.dns:update` permission as described in
+Configure `gddy` authentication as root and verify a DNS query as described in
 [root GoDaddy authentication]({{ site.baseurl }}{% link pages/root-authentication.md %}).
-Save the PAT in that file, either as a bare token or a single `GDDY_PAT=...`
-assignment. Installation and upgrades refresh `/etc/bmdynip/auto.env` from this
-source, owned by root with mode `0600`. Environment tokens do not override the
-source file. Missing or invalid source credentials stop installation; a failed
-refresh preserves the previous installed copy. Runtime reads only the installed
-copy and passes its PAT to `gddy` through the child process environment.
+BMDynIP invokes `gddy` directly using root's configured authentication and the
+inherited environment. It does not require or copy a separate PAT file.
 
 When `/etc/bmdynip/database.env` is missing, root must be able to connect to the
 local MariaDB server using Unix socket authentication. The installer creates
@@ -60,7 +54,6 @@ The installer creates:
 | `/etc/systemd/system/bmdynip-web.service` | Web UI service enabled at boot |
 | `/opt/prod/bmdynip/conf/bmdynip.json` | Domain and legacy hostname configuration |
 | `/opt/prod/bmdynip/data/` | Last successful update cache and process lock |
-| `/etc/bmdynip/auto.env` | Root GoDaddy PAT; directory mode `0700`, file mode `0600` |
 | `/etc/bmdynip/database.env` | Root-owned MariaDB credentials, mode `0600` |
 | `/etc/cron.d/bmdynip` | Root cron job using `DBMDynIP.CRON_SCHEDULE` |
 | MariaDB `bmdynip` database | Managed DNS names, live status, migration markers, and CWM history |
@@ -84,8 +77,8 @@ git pull
 ```
 
 This stops the Web UI, replaces the executables and cron job while preserving
-configuration, saved state, and database credentials, refreshes the GoDaddy PAT
-from the home source, then starts the Web UI and prints
+configuration, saved state, database credentials, and existing GoDaddy credential
+files, then starts the Web UI and prints
 its status and port after checking readiness. If deployment fails after the
 service stops, fix the reported error and rerun the upgrade.
 
