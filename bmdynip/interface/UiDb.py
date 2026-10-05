@@ -29,7 +29,8 @@ class UiDb:
                     'FROM ChangeRequest cr LEFT JOIN TaggedValue error '
                     "ON error.modelElement=cr.id AND error.tag='error' ORDER BY cr.id DESC LIMIT 100"):
                 messages.append({'timestamp': row['requestDate'].replace(tzinfo=timezone.utc).isoformat(),
-                                 'source': 'DNS', 'message': row['changeDescription'] + ' — ' + row['status'] +
+                                 'source': 'bmdynip.interface.PublicIpDb',
+                                 'message': row['changeDescription'] + ' — ' + row['status'] +
                                  (': ' + row['error'] if row['error'] else '')})
             return {'domain': domain, 'publicIp': current, 'records': records, 'messages': messages,
                     **state}

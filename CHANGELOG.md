@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Show hostname addition and runner process steps in the Web UI status messages,
+  including discovery, DNS updates, completion, and failures with module names as sources.
+
 ## [1.5.0] - 2026-10-04 @ 22:41
 
 ### Added

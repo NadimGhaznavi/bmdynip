@@ -13,6 +13,7 @@ class DBMDynIP:
     WEB_SERVICE_FILE: Final[str] = "/etc/systemd/system/bmdynip-web.service"
     SYSTEMCTL: Final[str] = "/usr/bin/systemctl"
     INSTALL_DIR: Final[str] = "/opt/prod/bmdynip"
+    STATUS_MESSAGES_FILE: Final[str] = "status-messages.json"
     CREDENTIALS_FILE: Final[str] = "/etc/bmdynip/auto.env"
     ROOT_CREDENTIALS_FILE: Final[str] = "/root/.godaddy-cli"
     GODADDY_CREDENTIAL_NAME: Final[str] = ".godaddy-cli"

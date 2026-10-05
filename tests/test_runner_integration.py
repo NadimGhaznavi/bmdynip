@@ -21,6 +21,7 @@ from bmdynip.interface.GoDaddyCli import GoDaddyCli
 from bmdynip.interface.IpState import IpState
 from bmdynip.interface.PublicIpService import PublicIpService
 from bmdynip.interface.RunnerProcess import RunnerProcess
+from bmdynip.interface.StatusMessages import StatusMessages
 from test_control_api import LiveControlFixture
 
 
@@ -65,6 +66,11 @@ class LiveRunnerTests(LiveControlFixture):
         self.assertEqual(status, 201)
         return value['id']
 
+    @staticmethod
+    def dns_history(snapshot):
+        return [entry for entry in snapshot['messages']
+                if entry['source'] == 'bmdynip.interface.PublicIpDb']
+
     def test_ui_names_run_persist_and_unchanged_run_skips_dns(self):
         home = self.add('home')
         self.assertEqual(runner.main(), 0)
@@ -72,13 +78,22 @@ class LiveRunnerTests(LiveControlFixture):
         self.assertEqual(first['publicIp'], '8.8.8.8')
         self.assertEqual(first['records'][0]['status'], 'Current')
         self.assertTrue(first['lastCheckedOn'] and first['lastAppliedOn'])
-        self.assertEqual(len(first['messages']), 1)
-        self.assertIn('implemented', first['messages'][0]['message'])
+        self.assertEqual(len(self.dns_history(first)), 1)
+        self.assertIn('implemented', self.dns_history(first)[0]['message'])
+        steps = [entry['message'] for entry in reversed(first['messages'])
+                 if entry['source'] != 'bmdynip.interface.PublicIpDb']
+        self.assertIn('Added home.example.test; starting the runner.', steps)
+        self.assertLess(steps.index('Checking public IPv4 discovery services.'),
+                        steps.index('Updating home.example.test A record to 8.8.8.8.'))
+        self.assertLess(steps.index('DNS update succeeded for home.example.test.'),
+                        steps.index('Runner complete.'))
         saved = self.state.path.read_bytes()
         self.assertEqual(runner.main(), 0)
         self.assertEqual(self.dns.call_count, 1)
         self.assertEqual(self.state.path.read_bytes(), saved)
-        self.assertEqual(self.request()[1]['messages'], first['messages'])
+        second = self.request()[1]
+        self.assertEqual(self.dns_history(second), self.dns_history(first))
+        self.assertTrue(any('no DNS update needed' in entry['message'] for entry in second['messages']))
         self.add('vpn')
         self.assertEqual(runner.main(), 0)
         self.assertEqual(self.dns.call_count, 3)
@@ -123,12 +138,14 @@ class LiveRunnerTests(LiveControlFixture):
         self.add('home')
         self.assertEqual(runner.main(), 0)
         saved = self.state.path.read_bytes()
-        history = self.request()[1]['messages']
+        history = self.dns_history(self.request()[1])
         self.public_ip.side_effect = ValueError('Public IP services disagree')
         self.assertEqual(runner.main(), 1)
         self.assertEqual(self.dns.call_count, 1)
         self.assertEqual(self.state.path.read_bytes(), saved)
-        self.assertEqual(self.request()[1]['messages'], history)
+        snapshot = self.request()[1]
+        self.assertEqual(self.dns_history(snapshot), history)
+        self.assertIn('Runner failed', snapshot['messages'][0]['message'])
         self.network.side_effect = ValueError('Invalid route')
         self.assertEqual(runner.main(), 1)
         self.assertEqual(self.dns.call_count, 1)
@@ -141,7 +158,8 @@ class LiveRunnerTests(LiveControlFixture):
         snapshot = self.request()[1]
         self.assertEqual(snapshot['publicIp'], '8.8.8.8')
         self.assertEqual(snapshot['records'], [])
-        self.assertEqual(snapshot['messages'], [])
+        self.assertEqual(self.dns_history(snapshot), [])
+        self.assertIn('no hostnames to update', snapshot['messages'][0]['message'])
         self.assertIsNone(snapshot['lastAppliedOn'])
         self.assertFalse(self.state.path.exists())
 
@@ -194,7 +212,7 @@ runner.os = SimpleNamespace(geteuid=lambda: 0, umask=lambda value: None)
 raise SystemExit(runner.main())
 ''')
         executable.chmod(0o755)
-        process = RunnerProcess()
+        process = RunnerProcess(StatusMessages(self.server.state_directory / DBMDynIP.STATUS_MESSAGES_FILE))
         self.addCleanup(process.close)
         self.server.start_runner = process.start
         status, saved = self.request('/api/records', 'POST', {'name': 'immediate'})
@@ -209,5 +227,7 @@ raise SystemExit(runner.main())
                 self.fail('Immediate runner did not update the saved hostname')
             time.sleep(0.05)
         self.assertEqual(dns_calls.read_text(), 'immediate')
-        self.assertIn('implemented', snapshot['messages'][0]['message'])
+        self.assertIn('implemented', self.dns_history(snapshot)[0]['message'])
+        self.assertTrue(any(entry['source'] == 'bmdynip.activity.UpdatePublicIp' and
+                            'DNS update succeeded' in entry['message'] for entry in snapshot['messages']))
         self.assertTrue(self.state.path.exists())

@@ -26,6 +26,7 @@ from bmdynip.interface.DnsRecordDb import DnsRecordDb
 from bmdynip.interface.IpState import IpState
 from bmdynip.interface.PublicIpDb import PublicIpDb
 from bmdynip.interface.RunnerSchedule import RunnerSchedule
+from bmdynip.interface.StatusMessages import StatusMessages
 from bmdynip.server.__main__ import ControlHandler
 
 
@@ -64,6 +65,9 @@ class ApiRequestTests(unittest.TestCase):
         self.assertEqual(self.db.insert.call_args.args[1], ("example.test", "home"))
         self.db.close.assert_called_once()
         self.server.start_runner.assert_called_once()
+        messages = StatusMessages(self.server.state_directory / DBMDynIP.STATUS_MESSAGES_FILE).snapshot()
+        self.assertEqual(messages[0]['source'], 'bmdynip.server.__main__')
+        self.assertEqual(messages[0]['message'], 'Added home.example.test; starting the runner.')
 
     def test_invalid_payloads_do_not_open_database(self):
         for body in (b"{", b"[]", b'{"name":1}', b'{"name":"home","extra":1}'):
@@ -105,6 +109,8 @@ class ApiRequestTests(unittest.TestCase):
         with self.assertLogs(level='ERROR'):
             self.assertEqual(self.request(), (201, {'id': 7, 'runnerStarted': False}))
         self.db.transaction.return_value.__exit__.assert_called_once()
+        messages = StatusMessages(self.server.state_directory / DBMDynIP.STATUS_MESSAGES_FILE).snapshot()
+        self.assertIn('runner could not start', messages[-1]['message'])
 
     def test_duplicate_hostname_does_not_trigger_runner(self):
         from pymysql import IntegrityError
