@@ -23,13 +23,15 @@ View service logs with `journalctl -u bmdynip-web.service`.
 From a development checkout, start a separate preview with Python 3.10 or newer:
 
 ```sh
-python3 -m bmdynip.server
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m bmdynip.server
 ```
 
 Open `http://127.0.0.1:49700/`. To access the preview from another machine:
 
 ```sh
-python3 -m bmdynip.server --host 0.0.0.0
+.venv/bin/python -m bmdynip.server --host 0.0.0.0
 ```
 
 The interface has no authentication. It displays sample system status and A

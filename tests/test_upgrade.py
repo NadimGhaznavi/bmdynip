@@ -86,6 +86,14 @@ class UpgradeDeploymentTests(unittest.TestCase):
         self.opener = self.stack.enter_context(patch.object(installer, "build_opener")).return_value
         self.opener.open.return_value.__enter__.return_value.status = 200
         self.stack.enter_context(patch("sys.stdout", new=io.StringIO()))
+        self.dependencies = self.stack.enter_context(
+            patch.object(installer, "install_dependencies", side_effect=self.stage_dependency))
+
+    @staticmethod
+    def stage_dependency(target):
+        package = target / "pymysql"
+        package.mkdir()
+        (package / "__init__.py").write_text('"""Dependency fixture."""\n')
 
     def test_stop_deploy_start_preserves_files_and_permissions(self):
         root = Path(DBMDynIP.INSTALL_DIR)
@@ -125,6 +133,7 @@ class UpgradeDeploymentTests(unittest.TestCase):
             self.assertEqual(archive.stat().st_mode & 0o777, 0o755)
             with zipfile.ZipFile(archive) as bundle:
                 self.assertIn("bmdynip/app/main.py", bundle.namelist())
+                self.assertIn("pymysql/__init__.py", bundle.namelist())
                 self.assertIn("bmdynip/server/static/bmdynip-logo.png", bundle.namelist())
         self.assertEqual(config.stat().st_mode & 0o777, 0o600)
         self.assertEqual(credentials.stat().st_mode & 0o777, 0o600)
@@ -137,8 +146,17 @@ class UpgradeDeploymentTests(unittest.TestCase):
         with patch.object(installer.Credentials, "provision"), \
                 self.assertRaises(subprocess.CalledProcessError):
             installer.upgrade()
-        self.assertFalse(Path(DBMDynIP.INSTALL_DIR).exists())
+        self.assertFalse((Path(DBMDynIP.INSTALL_DIR) / "bin/bmdynip").exists())
+        self.assertFalse(Path(DBMDynIP.CRON_FILE).exists())
         self.control.assert_called_once_with("stop", "bmdynip-web.service")
+
+    def test_dependency_failure_leaves_service_running(self):
+        self.dependencies.side_effect = subprocess.CalledProcessError(1, "pip")
+        with patch.object(installer.Credentials, "provision"), \
+                self.assertRaises(subprocess.CalledProcessError):
+            installer.upgrade()
+        self.control.assert_not_called()
+        self.assertFalse((Path(DBMDynIP.INSTALL_DIR) / "bin/bmdynip").exists())
 
     def test_inactive_service_is_retried_before_http_check(self):
         self.control.side_effect = [None, subprocess.CalledProcessError(3, "systemctl"), None]
@@ -159,3 +177,19 @@ class UpgradeDeploymentTests(unittest.TestCase):
         with self.assertRaises(subprocess.CalledProcessError):
             installer.start_web("start")
         self.control.assert_called_once()
+
+
+class DependencyTests(unittest.TestCase):
+    def test_requirements_are_installed_into_archive_staging(self):
+        with tempfile.TemporaryDirectory(prefix="bmdynip-pip-test-") as directory, \
+                patch.object(installer.venv, "EnvBuilder") as builder, \
+                patch.object(installer.subprocess, "run") as run:
+            target = Path(directory)
+            installer.install_dependencies(target)
+        builder.assert_called_once_with(with_pip=True)
+        environment = Path(builder.return_value.create.call_args.args[0])
+        run.assert_called_once_with(
+            [str(environment / "bin/python"), "-m", "pip", "--disable-pip-version-check",
+             "install", "--no-cache-dir", "--no-compile", "--target", str(target),
+             "-r", str(ROOT / "requirements.txt")], check=True, timeout=180)
+        self.assertFalse(environment.exists())

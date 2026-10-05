@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Declare PyMySQL in `requirements.txt` and bundle it in both executable
+  archives during installation and upgrades.
+
 ## [1.2.1] - 2026-10-04 @ 20:09
 
 ### Fixed
