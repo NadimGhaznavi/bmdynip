@@ -40,7 +40,7 @@ class ApiRequestTests(unittest.TestCase):
         self.db.insert.return_value = 7
         self.factory = Mock(return_value=self.db)
         self.server = SimpleNamespace(db_factory=self.factory, domain="example.test",
-                                      state_directory=Path(directory.name))
+                                      state_directory=Path(directory.name), start_runner=Mock())
 
     def request(self, path="/api/records", method="POST", body=b'{"name":"home"}', headers=None):
         handler = object.__new__(ControlHandler)
@@ -54,15 +54,23 @@ class ApiRequestTests(unittest.TestCase):
         return handler.respond.call_args.args
 
     def test_add_normalizes_name_and_closes_database(self):
-        self.assertEqual(self.request(body=b'{"name":" HOME "}'), (201, {"id": 7}))
+        def start():
+            self.db.close.assert_called_once()
+            self.db.transaction.return_value.__exit__.assert_called_once()
+            with IpState(self.server.state_directory).lock() as acquired:
+                self.assertTrue(acquired)
+        self.server.start_runner.side_effect = start
+        self.assertEqual(self.request(body=b'{"name":" HOME "}'), (201, {"id": 7, "runnerStarted": True}))
         self.assertEqual(self.db.insert.call_args.args[1], ("example.test", "home"))
         self.db.close.assert_called_once()
+        self.server.start_runner.assert_called_once()
 
     def test_invalid_payloads_do_not_open_database(self):
         for body in (b"{", b"[]", b'{"name":1}', b'{"name":"home","extra":1}'):
             with self.subTest(body=body):
                 self.assertEqual(self.request(body=body)[0], 400)
         self.factory.assert_not_called()
+        self.server.start_runner.assert_not_called()
 
     def test_invalid_names_do_not_write_and_close_database(self):
         for name in ("@", "nested.name", "bad name", "-prefix", "suffix-", ""):
@@ -70,6 +78,7 @@ class ApiRequestTests(unittest.TestCase):
                 self.assertEqual(self.request(body=json.dumps({"name": name}).encode())[0], 400)
         self.db.insert.assert_not_called()
         self.assertEqual(self.db.close.call_count, 6)
+        self.server.start_runner.assert_not_called()
 
     def test_cross_origin_and_non_json_writes_do_not_open_database(self):
         for headers, status in (({"Origin": "https://other.example"}, 403),
@@ -83,11 +92,25 @@ class ApiRequestTests(unittest.TestCase):
             self.assertEqual(self.request()[0], 409)
         self.db.insert.assert_not_called()
         self.db.close.assert_called_once()
+        self.server.start_runner.assert_not_called()
 
     def test_database_failure_does_not_report_success(self):
         self.db.insert.side_effect = OperationalError(2006, "test-only connection failure")
         self.assertEqual(self.request(), (503, {"error": "Database unavailable."}))
         self.db.close.assert_called_once()
+        self.server.start_runner.assert_not_called()
+
+    def test_launch_failure_reports_saved_hostname(self):
+        self.server.start_runner.side_effect = FileNotFoundError('runner missing')
+        with self.assertLogs(level='ERROR'):
+            self.assertEqual(self.request(), (201, {'id': 7, 'runnerStarted': False}))
+        self.db.transaction.return_value.__exit__.assert_called_once()
+
+    def test_duplicate_hostname_does_not_trigger_runner(self):
+        from pymysql import IntegrityError
+        self.db.insert.side_effect = IntegrityError(1062, 'duplicate')
+        self.assertEqual(self.request()[0], 409)
+        self.server.start_runner.assert_not_called()
 
 
 class LiveControlFixture(unittest.TestCase):
@@ -110,6 +133,7 @@ class LiveControlFixture(unittest.TestCase):
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), self.handler_class())
         self.server.db_factory = self.open_database
         self.server.db_failure = False
+        self.server.start_runner = Mock()
         self.server.domain = "example.test"
         self.server.state_directory = state
         self.server.runner_schedule = RunnerSchedule(self.root / "cron", state)

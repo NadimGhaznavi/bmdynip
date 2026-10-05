@@ -153,10 +153,12 @@ async function changeRecord(operation, success, afterSave = () => {}) {
   controls();
   message('Saving…');
   try {
-    await operation();
+    const result = await operation();
     afterSave();
     const refreshed = await loadSnapshot();
-    message(success + (refreshed ? '' : ' Saved, but live status could not be refreshed. Retrying…'));
+    const outcome = typeof success === 'function' ? success(result) : success;
+    message(outcome + (refreshed ? '' : ' Saved, but live status could not be refreshed. Retrying…'),
+      result.runnerStarted === false);
   } catch (error) {
     if (!(error instanceof ApiError)) throw error;
     message(error.status === null
@@ -173,7 +175,9 @@ form.addEventListener('submit', async event => {
   event.preventDefault();
   const name = input.value.trim().toLowerCase();
   if (!current) return;
-  await changeRecord(() => addRecord(name), `Added ${name}.${current.domain}. It will be updated on the next runner execution.`,
+  await changeRecord(() => addRecord(name), result => `Added ${name}.${current.domain}. ` +
+    (result.runnerStarted ? 'Runner started. DNS status will refresh automatically.' :
+      'The runner could not start. Check the service log; the hostname is saved for the next scheduled or manual run.'),
     () => { input.value = ''; });
   input.focus();
 });

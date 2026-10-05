@@ -47,8 +47,11 @@ browser's local timezone. An unavailable database shows an error and disables
 hostname changes until status can be refreshed.
 
 **Add hostname** saves a single label, such as `wintermute`, to the database.
-Nested names and the apex are excluded. The runner applies the new hostname on
-its next execution. **Delete** asks for confirmation and stops managing the name;
+Nested names and the apex are excluded. Saving a hostname starts the installed
+runner immediately; DNS status and history refresh as the update completes.
+If the runner cannot start, the saved hostname remains available for the next
+scheduled or manual run and the interface shows an error.
+**Delete** asks for confirmation and stops managing the name;
 its existing GoDaddy A record and change history are retained. Hostname changes
 persist across reloads. If a save request times out, check the refreshed list
 before retrying.

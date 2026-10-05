@@ -29,6 +29,10 @@ class BrowserHandler(ControlHandler):
         self.wfile.write(body)
 
     def do_POST(self):
+        if self.path == "/__runner-failure":
+            self.server.start_runner.side_effect = FileNotFoundError('test-only missing runner')
+            self.respond(200, {"failed": True})
+            return
         if self.path == "/__failure":
             values = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             self.server.db_failure = values["failed"]

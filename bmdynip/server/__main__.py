@@ -1,6 +1,7 @@
 """Serve BMDynIP controls backed by MariaDB."""
 
 import argparse
+from contextlib import closing
 import json
 import logging
 import re
@@ -18,6 +19,7 @@ from bmdynip.interface.DnsRecordDb import DnsRecordDb
 from bmdynip.interface.IpState import IpState
 from bmdynip.interface.UiDb import UiDb
 from bmdynip.interface.RunnerSchedule import RunnerSchedule
+from bmdynip.interface.RunnerProcess import RunnerProcess
 
 
 SERVER_DIR = files("bmdynip.server")
@@ -146,9 +148,16 @@ class ControlHandler(BaseHTTPRequestHandler):
                             else:
                                 removed = records.remove(identity)
                                 value, status = ({'removed': True}, 200) if removed else ({'error': 'Record not found.'}, 404)
-                self.respond(status, value)
             finally:
                 db.close()
+            if operation == 'add':
+                try:
+                    self.server.start_runner()
+                    value['runnerStarted'] = True
+                except OSError:
+                    logging.exception('Hostname saved but the immediate runner could not start')
+                    value['runnerStarted'] = False
+            self.respond(status, value)
         except IntegrityError as error:
             if error.args[0] == 1062:
                 self.respond(409, {'error': 'That hostname already exists.'})
@@ -191,11 +200,12 @@ def main() -> None:
     args = parser.parse_args()
     if not 1 <= args.port <= 65535:
         parser.error("--port must be between 1 and 65535.")
-    with ThreadingHTTPServer((args.host, args.port), ControlHandler) as server:
+    with closing(RunnerProcess()) as runner, ThreadingHTTPServer((args.host, args.port), ControlHandler) as server:
         server.db_factory = open_database
         server.domain = Configuration.domain(Path(DBMDynIP.INSTALL_DIR) / 'conf/bmdynip.json')
         server.state_directory = Path(DBMDynIP.INSTALL_DIR) / 'data'
         server.runner_schedule = RunnerSchedule()
+        server.start_runner = runner.start
         print(f"BMDynIP Web UI: http://{args.host}:{server.server_port}/", flush=True)
         try:
             server.serve_forever()
