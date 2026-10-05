@@ -27,6 +27,7 @@ from bmdynip.interface.Credentials import Credentials
 from bmdynip.interface.GoDaddyCli import GoDaddyCli
 from bmdynip.interface.IpState import IpState
 from bmdynip.interface.PublicIpService import PublicIpService
+from bmdynip.interface.StatusMessages import StatusMessages
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -79,7 +80,8 @@ class FlowTests(TemporaryFiles):
         self.state = IpState(self.root)
         self.public_ip = Mock(current_address=Mock(return_value=IP))
         self.dns = Mock()
-        self.activity = UpdatePublicIp(self.public_ip, self.dns, self.state)
+        self.messages = StatusMessages(self.root / DBMDynIP.STATUS_MESSAGES_FILE)
+        self.activity = UpdatePublicIp(self.public_ip, self.dns, self.state, messages=self.messages)
 
     def test_first_update_then_unchanged(self):
         with patch("sys.stdout", new=io.StringIO()):
@@ -87,6 +89,9 @@ class FlowTests(TemporaryFiles):
             self.assertFalse(self.activity.run(RECORDS))
         self.dns.replace.assert_called_once_with(DnsRecord("example.com", "api", IP))
         self.assertTrue(self.state.is_current(IP, RECORDS))
+        messages = self.messages.snapshot()
+        self.assertTrue(all(entry['source'] == 'bmdynip.activity.UpdatePublicIp' for entry in messages))
+        self.assertIn('no DNS update needed', messages[-1]['message'])
 
     def test_changed_configuration_refreshes_same_ip(self):
         self.state.save(IP, RECORDS)
@@ -105,6 +110,7 @@ class FlowTests(TemporaryFiles):
         with self.assertRaisesRegex(ValueError, "DNS failed"):
             self.activity.run(records)
         self.assertEqual(self.state.path.read_bytes(), before)
+        self.assertIn('DNS update failed for home.example.com', self.messages.snapshot()[-1]['message'])
         self.dns.replace.side_effect = None
         with patch("sys.stdout", new=io.StringIO()):
             self.assertTrue(self.activity.run(records))

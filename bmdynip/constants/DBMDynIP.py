@@ -4,7 +4,7 @@ from typing import Final
 
 
 class DBMDynIP:
-    VERSION: Final[str] = "1.5.0"
+    VERSION: Final[str] = "1.6.0"
     WEB_HOST: Final[str] = "0.0.0.0"
     WEB_PORT: Final[int] = 49700
     WEB_REQUEST_TIMEOUT: Final[int] = 15
@@ -13,6 +13,7 @@ class DBMDynIP:
     WEB_SERVICE_FILE: Final[str] = "/etc/systemd/system/bmdynip-web.service"
     SYSTEMCTL: Final[str] = "/usr/bin/systemctl"
     INSTALL_DIR: Final[str] = "/opt/prod/bmdynip"
+    STATUS_MESSAGES_FILE: Final[str] = "status-messages.json"
     CREDENTIALS_FILE: Final[str] = "/etc/bmdynip/auto.env"
     ROOT_CREDENTIALS_FILE: Final[str] = "/root/.godaddy-cli"
     GODADDY_CREDENTIAL_NAME: Final[str] = ".godaddy-cli"

@@ -19,7 +19,7 @@ class RunnerProcessTests(unittest.TestCase):
             launch.assert_called_once_with(['/installation with spaces/bin/bmdynip'],
                                            stdin=subprocess.DEVNULL, start_new_session=True)
             launch.return_value.wait.assert_not_called()
-            executor.return_value.submit.assert_called_once_with(runner._finish, launch.return_value)
+            executor.return_value.submit.assert_called_once_with(runner._finish, launch.return_value, None)
             runner.close()
             executor.return_value.shutdown.assert_called_once_with(wait=True)
 
@@ -34,16 +34,20 @@ class RunnerProcessTests(unittest.TestCase):
 
     def test_completion_is_reaped_and_failure_is_logged(self):
         process = Mock()
+        messages = Mock()
         process.wait.return_value = 1
         with self.assertLogs(level='ERROR'):
-            RunnerProcess._finish(process)
+            RunnerProcess._finish(process, messages)
         process.wait.assert_called_once_with(timeout=DBMDynIP.WEB_RUNNER_TIMEOUT)
+        self.assertIn('exited with status 1', messages.append.call_args.args[0])
 
     def test_timeout_kills_and_reaps_process(self):
         process = Mock()
+        messages = Mock()
         process.pid = 12345
         process.wait.side_effect = [subprocess.TimeoutExpired('runner', 600), -9]
         with patch('bmdynip.interface.RunnerProcess.os.killpg') as kill, self.assertLogs(level='ERROR'):
-            RunnerProcess._finish(process)
+            RunnerProcess._finish(process, messages)
         kill.assert_called_once_with(12345, signal.SIGKILL)
         self.assertEqual(process.wait.call_count, 2)
+        self.assertIn('timed out', messages.append.call_args.args[0])
