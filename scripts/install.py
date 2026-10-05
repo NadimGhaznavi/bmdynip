@@ -133,17 +133,13 @@ def install(*, upgrading: bool = False) -> None:
                 temporary_web.replace(root / "bin" / "bmdynip-web")
             finally:
                 temporary_web.unlink(missing_ok=True)
-        cron = Path(DBMDynIP.CRON_FILE)
-        text = ("# Managed by BMDynIP's installer.\n"
-                "SHELL=/bin/sh\nHOME=/root\nPATH=/usr/bin:/bin\n"
-                f"{DBMDynIP.CRON_SCHEDULE} root {root}/bin/bmdynip 2>&1 | /usr/bin/logger -t bmdynip\n")
-        temporary_cron = cron.with_name(".bmdynip.new")
-        try:
-            temporary_cron.write_text(text)
-            temporary_cron.chmod(0o644)
-            temporary_cron.replace(cron)
-        finally:
-            temporary_cron.unlink(missing_ok=True)
+            # Use the dependency staged for the archives, without requiring global packages.
+            sys.path.insert(0, str(staged))
+            try:
+                from bmdynip.interface.RunnerSchedule import RunnerSchedule
+                schedule = RunnerSchedule().install()
+            finally:
+                sys.path.remove(str(staged))
     service = Path(DBMDynIP.WEB_SERVICE_FILE)
     service.write_text(
         "[Unit]\nDescription=BMDynIP Web UI\nAfter=network.target\n\n"
@@ -157,7 +153,8 @@ def install(*, upgrading: bool = False) -> None:
         start_web("start")
     else:
         restart()
-    print(f"Installed BMDynIP {DBMDynIP.VERSION}; cron runs every five minutes.")
+    print(f"Installed BMDynIP {DBMDynIP.VERSION}; runner schedule: "
+          f"{'enabled' if schedule['enabled'] else 'disabled'}; {schedule['expression']}.")
     print(f"Configure DNS names in {config}. Existing configuration and data were preserved.")
 
 
