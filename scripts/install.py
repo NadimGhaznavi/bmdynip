@@ -1,7 +1,6 @@
 """Install, restart, or remove BMDynIP's updater and Web UI service."""
 
 import argparse
-import getpass
 import os
 from pathlib import Path
 import shutil
@@ -72,21 +71,7 @@ def restart() -> None:
 
 
 def read_token() -> str:
-    token = os.environ.get("GDDY_PAT")
-    if token:
-        return token
-    source = Path(DBMDynIP.ROOT_CREDENTIALS_FILE)
-    if source.exists() or source.is_symlink():
-        return Credentials.import_token(source)
-    if not sys.stdin.isatty():
-        raise ValueError("Credentials are missing. Run installation in a terminal to enter a "
-                         "GoDaddy PAT, or supply GDDY_PAT in the environment.")
-    print("Generate a GoDaddy PAT named bmdynip with domains.dns:update permission at")
-    print("https://developer.godaddy.com/personal-access-token")
-    try:
-        return getpass.getpass("GoDaddy PAT (hidden): ")
-    except EOFError:
-        raise ValueError("No GoDaddy PAT was supplied.") from None
+    return Credentials.godaddy()
 
 
 def install_dependencies(target: Path) -> None:
@@ -127,7 +112,7 @@ def install(*, upgrading: bool = False) -> None:
     root = Path(DBMDynIP.INSTALL_DIR)
     config = root / "conf" / "bmdynip.json"
     Configuration.load(config if config.exists() else REPOSITORY / "conf" / "bmdynip.json")
-    Credentials.provision(Path(DBMDynIP.CREDENTIALS_FILE), read_token)
+    Credentials.provision(Path(DBMDynIP.CREDENTIALS_FILE), read_token, refresh=True)
     DatabaseProvisioning(REPOSITORY / "schema/bmdynip-schema-v1.sql").provision()
     for name in ("bin", "conf", "data"):
         (root / name).mkdir(parents=True, exist_ok=True)

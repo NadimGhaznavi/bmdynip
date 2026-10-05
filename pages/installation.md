@@ -24,15 +24,16 @@ access to the Python package index to install `requirements.txt` into both
 executable archives. PyMySQL is bundled; no global Python package installation
 is needed.
 
-The installer reuses the root-owned, mode `0600` PAT file `/root/.godaddy-cli`
-when `/etc/bmdynip/auto.env` is missing. If you do not already have a PAT,
+The installer reads the root-owned, mode `0600` PAT file `$HOME/.godaddy-cli`
+(`/root/.godaddy-cli` when run as root). If you do not already have a PAT,
 generate one with `domains.dns:update` permission as described in
 [root GoDaddy authentication]({{ site.baseurl }}{% link pages/root-authentication.md %}).
-Without that source file, the installer asks for the PAT with input hidden.
-It creates `/etc/bmdynip/auto.env`, owned by root with mode `0600`.
-Unattended installation can supply `GDDY_PAT` through the environment; it takes
-precedence over the source file. Existing installed credentials are validated
-and preserved without prompting.
+Save the PAT in that file, either as a bare token or a single `GDDY_PAT=...`
+assignment. Installation and upgrades refresh `/etc/bmdynip/auto.env` from this
+source, owned by root with mode `0600`. Environment tokens do not override the
+source file. Missing or invalid source credentials stop installation; a failed
+refresh preserves the previous installed copy. Runtime reads only the installed
+copy and passes its PAT to `gddy` through the child process environment.
 
 When `/etc/bmdynip/database.env` is missing, root must be able to connect to the
 local MariaDB server using Unix socket authentication. The installer creates
@@ -83,7 +84,8 @@ git pull
 ```
 
 This stops the Web UI, replaces the executables and cron job while preserving
-configuration, saved state, and credentials, then starts the Web UI and prints
+configuration, saved state, and database credentials, refreshes the GoDaddy PAT
+from the home source, then starts the Web UI and prints
 its status and port after checking readiness. If deployment fails after the
 service stops, fix the reported error and rerun the upgrade.
 
