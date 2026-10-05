@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-04 @ 22:02
+
 ### Added
 
 - Import existing JSON hostnames into MariaDB once during installation or upgrade,
