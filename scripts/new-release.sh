@@ -5,7 +5,7 @@ set -Eeuo pipefail
 
 # Project settings: keep adaptations to other Python projects in this block.
 readonly project_name="BMDynIP"
-readonly version_file="bmdynip/constants/BMDynIP.py"
+readonly version_file="bmdynip/constants/DBMDynIP.py"
 readonly version_constant="VERSION"
 readonly codename_constant="CMDB_CODENAME"
 readonly changelog_file="CHANGELOG.md"
