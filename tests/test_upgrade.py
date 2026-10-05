@@ -102,7 +102,7 @@ class UpgradeDeploymentTests(unittest.TestCase):
         (root / "bin").mkdir(parents=True)
         web = root / "bin/bmdynip-web"
         web.write_bytes(b"old executable")
-        with patch.object(installer.Credentials, "provision"), self.assertRaisesRegex(ValueError, "migrate"):
+        with patch("bmdynip.interface.Credentials.Credentials.provision"), self.assertRaisesRegex(ValueError, "migrate"):
             installer.upgrade()
         self.control.assert_not_called()
         self.assertEqual(web.read_bytes(), b"old executable")
@@ -114,7 +114,7 @@ class UpgradeDeploymentTests(unittest.TestCase):
         (root / "bin").mkdir(parents=True)
         web = root / "bin/bmdynip-web"
         web.write_bytes(b"old executable")
-        with patch.object(installer.Credentials, "provision"), self.assertRaisesRegex(ValueError, "Database"):
+        with patch("bmdynip.interface.Credentials.Credentials.provision"), self.assertRaisesRegex(ValueError, "Database"):
             installer.upgrade()
         self.control.assert_not_called()
         self.dependencies.assert_not_called()
@@ -152,7 +152,7 @@ class UpgradeDeploymentTests(unittest.TestCase):
                 self.assertTrue(Path(DBMDynIP.CRON_FILE).exists())
 
         self.control.side_effect = control
-        with patch.object(installer.Credentials, "provision"):
+        with patch("bmdynip.interface.Credentials.Credentials.provision"):
             installer.upgrade()
         service = "bmdynip-web.service"
         self.assertEqual(self.control.call_args_list, [
@@ -181,7 +181,7 @@ class UpgradeDeploymentTests(unittest.TestCase):
         self.assertIn(f"{DBMDynIP.CRON_SCHEDULE} root {root}/bin/bmdynip", cron.read_text())
 
     def test_upgrade_preserves_custom_disabled_runner_schedule(self):
-        with patch.object(installer.Credentials, "provision"):
+        with patch("bmdynip.interface.Credentials.Credentials.provision"):
             installer.install()
             schedule = RunnerSchedule()
             values = schedule.update(False, "30 4 * * 1-5")
@@ -190,7 +190,7 @@ class UpgradeDeploymentTests(unittest.TestCase):
 
     def test_stop_failure_prevents_deployment(self):
         self.control.side_effect = subprocess.CalledProcessError(1, "systemctl stop")
-        with patch.object(installer.Credentials, "provision"), \
+        with patch("bmdynip.interface.Credentials.Credentials.provision"), \
                 self.assertRaises(subprocess.CalledProcessError):
             installer.upgrade()
         self.assertFalse((Path(DBMDynIP.INSTALL_DIR) / "bin/bmdynip").exists())
@@ -199,7 +199,7 @@ class UpgradeDeploymentTests(unittest.TestCase):
 
     def test_dependency_failure_leaves_service_running(self):
         self.dependencies.side_effect = subprocess.CalledProcessError(1, "pip")
-        with patch.object(installer.Credentials, "provision"), \
+        with patch("bmdynip.interface.Credentials.Credentials.provision"), \
                 self.assertRaises(subprocess.CalledProcessError):
             installer.upgrade()
         self.control.assert_not_called()

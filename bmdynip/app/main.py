@@ -10,7 +10,6 @@ from bmdynip.activity.UpdatePublicIp import UpdatePublicIp
 from bmdynip.activity.DiscoveryCoordinator import DiscoveryCoordinator
 from bmdynip.app.database import open_database
 from bmdynip.constants.DBMDynIP import DBMDynIP
-from bmdynip.interface.Credentials import Credentials
 from bmdynip.interface.GoDaddyCli import GoDaddyCli
 from bmdynip.interface.IpState import IpState
 from bmdynip.interface.PublicIpService import PublicIpService
@@ -49,9 +48,8 @@ def main() -> int:
                     audit.observe(public_ip.current_address())
                     messages.append('Public IPv4 observed; no hostnames to update.')
                     return 0
-                messages.append('Loading GoDaddy credentials.')
-                token = Credentials.load(Path(DBMDynIP.CREDENTIALS_FILE))
-                UpdatePublicIp(public_ip, GoDaddyCli(token), state, audit, messages).run(records)
+                messages.append('Using root\'s configured gddy authentication.')
+                UpdatePublicIp(public_ip, GoDaddyCli(), state, audit, messages).run(records)
                 messages.append('Runner complete.')
             finally:
                 db.close()

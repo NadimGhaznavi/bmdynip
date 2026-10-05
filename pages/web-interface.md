@@ -48,8 +48,8 @@ the emitting module as the source. Status refreshes every five seconds; times us
 browser's local timezone. An unavailable database shows an error and disables
 hostname changes until status can be refreshed.
 
-DNS failures include the provider's error. For `HTTP 401 Unauthorized`, follow
-the [credential rotation instructions]({{ site.baseurl }}{% link pages/root-authentication.md %}).
+DNS failures include the provider's error. Check authentication with the
+[root DNS query]({{ site.baseurl }}{% link pages/root-authentication.md %}).
 
 **Add hostname** saves a single label, such as `wintermute`, to the database.
 Nested names and the apex are excluded. Saving a hostname starts the installed

@@ -1,7 +1,7 @@
 """Delete and recreate configured A records using gddy."""
 
 import json
-import os
+import re
 import subprocess
 
 from bmdynip.constants.DBMDynIP import DBMDynIP
@@ -9,9 +9,6 @@ from bmdynip.entity.DnsRecord import DnsRecord
 
 
 class GoDaddyCli:
-    def __init__(self, token: str):
-        self.token = token
-
     def replace(self, record: DnsRecord) -> None:
         self._run("delete", record)
         self._run("add", record, "--data", str(record.address))
@@ -20,10 +17,8 @@ class GoDaddyCli:
         command = [DBMDynIP.GODADDY_CLI, "dns", action, record.domain,
                    "--type", "A", "--name", record.name, *extra,
                    "--env", "prod", "--output", "json", "--timeout", "60s"]
-        environment = dict(os.environ, GDDY_PAT=self.token)
-        environment.pop("GDDY_PAT_PROD", None)
         result = subprocess.run(
-            command, env=environment,
+            command,
             stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=65,
         )
         context = f"gddy {action} {record.name}.{record.domain}"
@@ -37,10 +32,7 @@ class GoDaddyCli:
                 message = failure['error'].get('message')
                 if isinstance(message, str):
                     detail = message
-            detail = detail.replace(self.token, "[redacted]")
-            if 'HTTP 401' in detail:
-                detail += ('; GoDaddy rejected the configured PAT. Replace the PAT in root\'s '
-                           '$HOME/.godaddy-cli and run scripts/upgrade.sh to refresh the installed credential.')
+            detail = re.sub(r'gd_pat_\S+', '[redacted]', detail)
             raise ValueError(f"{context} failed ({result.returncode}): {detail}")
         try:
             data = json.loads(result.stdout)["data"]
