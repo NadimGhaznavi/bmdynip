@@ -40,6 +40,7 @@ try {
   await add(' NewHost ');
   await wait(() => contains('newhost.example.test') && ready(), 'new hostname saved');
   assert(node('#hostname-feedback').textContent.startsWith('Added newhost.example.test.'), 'Add reports a committed save');
+  assert(node('#hostname-feedback').textContent.includes('Runner started.'), 'Add reports immediate runner launch');
   await add('newhost');
   await wait(() => node('#hostname-feedback').textContent.includes('already exists') && ready(), 'duplicate rejected');
   assert(node('#hostname-rows').children.length === initialCount + 1, 'Duplicate does not create another row');
@@ -95,6 +96,11 @@ try {
   await outage(false);
   await wait(ready, 'database recovery');
   assert(contains('saved.example.test'), 'Committed hostname appears after recovery');
+  await fetch('/__runner-failure', {method: 'POST'});
+  await add('launch-failed');
+  await wait(() => contains('launch-failed.example.test') && ready(), 'hostname retained after launch failure');
+  assert(node('#hostname-feedback').textContent.includes('The runner could not start'), 'Launch failure reports a saved hostname');
+  assert(node('#hostname-feedback').classList.contains('error'), 'Launch failure is displayed as an error');
   report.dataset.result = 'passed';
   report.textContent = `PASS: ${checks.length} browser checks\n${checks.join('\n')}`;
 } catch (error) {

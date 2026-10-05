@@ -5,6 +5,9 @@ import importlib
 import io
 from ipaddress import IPv4Address
 import os
+from pathlib import Path
+import sys
+import time
 import unittest
 from unittest.mock import Mock, patch
 
@@ -17,6 +20,7 @@ from bmdynip.interface.Credentials import Credentials
 from bmdynip.interface.GoDaddyCli import GoDaddyCli
 from bmdynip.interface.IpState import IpState
 from bmdynip.interface.PublicIpService import PublicIpService
+from bmdynip.interface.RunnerProcess import RunnerProcess
 from test_control_api import LiveControlFixture
 
 
@@ -160,3 +164,50 @@ class LiveRunnerTests(LiveControlFixture):
         self.assertIn('Database operation failed', self.stderr.getvalue())
         self.assertNotIn('private diagnostics', self.stderr.getvalue())
         self.dns.assert_not_called()
+
+    def test_add_launches_background_runner_and_updates_live_status(self):
+        executable = self.runtime / 'bin/bmdynip'
+        executable.parent.mkdir()
+        dns_calls = self.root / 'dns-calls'
+        source_root = str(Path(__file__).resolve().parents[1])
+        executable.write_text(f'''#!{sys.executable}
+import importlib
+from ipaddress import IPv4Address
+from pathlib import Path
+import sys
+from types import SimpleNamespace
+sys.path.insert(0, {source_root!r})
+from bmdynip.constants.DBMDynIP import DBMDynIP
+DBMDynIP.INSTALL_DIR = {str(self.runtime)!r}
+DBMDynIP.DATABASE_ENV = {str(self.root / 'config/database.env')!r}
+DBMDynIP.CREDENTIALS_FILE = {str(self.root / 'auto.env')!r}
+from bmdynip.activity.sources.NetworkSource import NetworkSource
+from bmdynip.activity.sources.HostSource import HostSource
+from bmdynip.interface.PublicIpService import PublicIpService
+from bmdynip.interface.GoDaddyCli import GoDaddyCli
+NetworkSource.collect = lambda self: {{'address': '192.0.2.10', 'gateway': '192.0.2.1', 'interface': 'test0', 'mac': None, 'gateway_mac': None}}
+HostSource.collect = lambda self: {{'hostname': 'test-host', 'system': {{'ID': 'test'}}}}
+PublicIpService.current_address = lambda self: IPv4Address('8.8.8.8')
+GoDaddyCli.replace = lambda self, record: Path({str(dns_calls)!r}).write_text(record.name)
+runner = importlib.import_module('bmdynip.app.main')
+runner.os = SimpleNamespace(geteuid=lambda: 0, umask=lambda value: None)
+raise SystemExit(runner.main())
+''')
+        executable.chmod(0o755)
+        process = RunnerProcess()
+        self.addCleanup(process.close)
+        self.server.start_runner = process.start
+        status, saved = self.request('/api/records', 'POST', {'name': 'immediate'})
+        self.assertEqual(status, 201)
+        self.assertTrue(saved['runnerStarted'])
+        deadline = time.monotonic() + 10
+        while True:
+            snapshot = self.request()[1]
+            if snapshot['records'][0]['status'] == 'Current':
+                break
+            if time.monotonic() >= deadline:
+                self.fail('Immediate runner did not update the saved hostname')
+            time.sleep(0.05)
+        self.assertEqual(dns_calls.read_text(), 'immediate')
+        self.assertIn('implemented', snapshot['messages'][0]['message'])
+        self.assertTrue(self.state.path.exists())

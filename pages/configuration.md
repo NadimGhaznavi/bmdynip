@@ -29,7 +29,7 @@ and restart the Web UI. Keep `hostnames` as an empty list for a new installation
 Add and delete managed names in the
 [Web UI]({{ site.baseurl }}{% link pages/web-interface.md %}). The runner reads
 hostnames from MariaDB; no managed names means no DNS changes. Adding a name
-triggers an update on the next run even if the IP has not changed.
+starts the runner immediately, even if the IP has not changed.
 Deleting a name stops managing it; its existing DNS record remains in place.
 
 Installation and upgrades import the existing JSON `hostnames` list once into
