@@ -29,18 +29,19 @@ Run from the checkout as root:
 ./scripts/install.sh
 ```
 
-If the installed credential file is missing, the installer first uses `GDDY_PAT`
-from the environment, then `/root/.godaddy-cli`, then prompts with input hidden.
-The source file must be owned by root with mode `0600` and contain either a
-single `GDDY_PAT=...` assignment or a plain PAT. It is read without executing
-shell code and remains unchanged.
+Before installation, save the PAT in `$HOME/.godaddy-cli` as root
+(normally `/root/.godaddy-cli`). The source file must be owned by root with mode
+`0600` and contain either a single `GDDY_PAT=...` assignment or a plain PAT.
+It is read without executing shell code and remains unchanged. Environment
+tokens do not override it.
 
 The installer creates the credential directory with mode `0700` and the
 root-owned file with mode `0600`. Never put the PAT in command arguments,
 cron entries, or the repository.
 
-Existing credentials are validated and retained on reinstall; installation
-fails if their format, ownership, or permissions are invalid. Symlinked
+Installation and upgrades refresh the installed PAT from the source file.
+Runtime uses only `/etc/bmdynip/auto.env`, so it does not depend on access to the
+home file. A failed refresh leaves the previous installed copy intact. Symlinked
 credential files or directories are rejected. Uninstall preserves credentials.
 
 The file contains exactly one unquoted assignment:
@@ -90,7 +91,7 @@ HTTP 401 indicates an invalid or expired token. For HTTP 403, check the token's
 scopes and access to the zone. `gddy auth status` reports cached OAuth state;
 use the DNS query to check this PAT.
 
-To rotate, edit `/etc/bmdynip/auto.env` as root, replace the assignment, and
-repeat the query. No reinstall is needed. Follow the
+To rotate, replace the PAT in `$HOME/.godaddy-cli` as root, run
+`./scripts/upgrade.sh` to refresh the installed copy, and repeat the query. Follow the
 [running guide]({{ site.baseurl }}{% link pages/running.md %}) to run the updater
 against your configured hostname list.

@@ -14,6 +14,7 @@ class DBMDynIP:
     INSTALL_DIR: Final[str] = "/opt/prod/bmdynip"
     CREDENTIALS_FILE: Final[str] = "/etc/bmdynip/auto.env"
     ROOT_CREDENTIALS_FILE: Final[str] = "/root/.godaddy-cli"
+    GODADDY_CREDENTIAL_NAME: Final[str] = ".godaddy-cli"
     DATABASE_ENV: Final[str] = "/etc/bmdynip/database.env"
     DATABASE_NAME: Final[str] = "bmdynip"
     DATABASE_USER: Final[str] = "bmdynip"
