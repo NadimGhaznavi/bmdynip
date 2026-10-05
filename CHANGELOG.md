@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add CMDB scanner metadata: subtype `Dynamic DNS Service`, supplier `Nadim-Daniel`,
+  and codename `Insight`.
+- Updated `scripts/new-release.sh`.
+
 ## [2.0.0] - 2026-10-04 @ 23:54
 
 ### Fixed
