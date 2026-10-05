@@ -51,12 +51,17 @@ The installer creates:
 | --- | --- |
 | `/opt/prod/bmdynip/bin/bmdynip` | Executable Python archive containing the application |
 | `/opt/prod/bmdynip/bin/bmdynip-web` | Web UI executable with bundled assets |
+| `/opt/prod/bmdynip/bmdynip/constants/DBMDynIP.py` | Readable version constants for CMDB application discovery |
 | `/etc/systemd/system/bmdynip-web.service` | Web UI service enabled at boot |
 | `/opt/prod/bmdynip/conf/bmdynip.json` | Domain and legacy hostname configuration |
 | `/opt/prod/bmdynip/data/` | Last successful update cache and process lock |
 | `/etc/bmdynip/database.env` | Root-owned MariaDB credentials, mode `0600` |
 | `/etc/cron.d/bmdynip` | Root cron job using `DBMDynIP.CRON_SCHEDULE` |
 | MariaDB `bmdynip` database | Managed DNS names, live status, migration markers, and CWM history |
+
+Register the application as `BMDynIP` in CMDB, preserving capitalization.
+Install and upgrade refresh the discovery file; uninstall removes it.
+Configuration and saved data remain accessible only to root.
 
 Installation enables cron immediately. It does not run a DNS update itself.
 Existing custom or disabled schedules are retained. Change the schedule in the

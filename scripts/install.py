@@ -111,6 +111,7 @@ def install(*, upgrading: bool = False) -> None:
     for name in ("bin", "conf", "data"):
         (root / name).mkdir(parents=True, exist_ok=True)
         (root / name).chmod(0o700 if name != "bin" else 0o755)
+    root.chmod(0o755)
     with IpState(root / "data").lock(blocking=True):
         if not config.exists():
             shutil.copyfile(REPOSITORY / "conf" / "bmdynip.json", config)
@@ -149,6 +150,17 @@ def install(*, upgrading: bool = False) -> None:
                 temporary_web.replace(root / "bin" / "bmdynip-web")
             finally:
                 temporary_web.unlink(missing_ok=True)
+            constants = root / "bmdynip" / "constants"
+            for directory in (constants.parent, constants):
+                directory.mkdir(exist_ok=True)
+                directory.chmod(0o755)
+            temporary_constants = constants / ".DBMDynIP.new"
+            try:
+                shutil.copyfile(staged / "bmdynip/constants/DBMDynIP.py", temporary_constants)
+                temporary_constants.chmod(0o644)
+                temporary_constants.replace(constants / "DBMDynIP.py")
+            finally:
+                temporary_constants.unlink(missing_ok=True)
             # Use the dependency staged for the archives, without requiring global packages.
             sys.path.insert(0, str(staged))
             try:
@@ -192,6 +204,7 @@ def uninstall() -> None:
     else:
         (root / "bin" / "bmdynip").unlink(missing_ok=True)
     (root / "bin" / "bmdynip-web").unlink(missing_ok=True)
+    (root / "bmdynip" / "constants" / "DBMDynIP.py").unlink(missing_ok=True)
     print("Removed BMDynIP's Web UI service, cron job, and executables; configuration, data, and credentials were preserved.")
 
 

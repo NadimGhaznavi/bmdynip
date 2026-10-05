@@ -175,6 +175,13 @@ class UpgradeDeploymentTests(unittest.TestCase):
             result = subprocess.run([str(archive), "--help"], text=True, capture_output=True, timeout=10)
             self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(config.stat().st_mode & 0o777, 0o600)
+        constants = root / "bmdynip/constants/DBMDynIP.py"
+        self.assertEqual(constants.read_bytes(), (ROOT / "bmdynip/constants/DBMDynIP.py").read_bytes())
+        self.assertEqual(constants.stat().st_mode & 0o777, 0o644)
+        for directory in (root, constants.parent.parent, constants.parent):
+            self.assertEqual(directory.stat().st_mode & 0o777, 0o755)
+        for directory in (root / "conf", root / "data"):
+            self.assertEqual(directory.stat().st_mode & 0o777, 0o700)
         self.assertEqual(credentials.stat().st_mode & 0o777, 0o600)
         cron = Path(DBMDynIP.CRON_FILE)
         self.assertEqual(cron.stat().st_mode & 0o777, 0o644)
@@ -187,6 +194,21 @@ class UpgradeDeploymentTests(unittest.TestCase):
             values = schedule.update(False, "30 4 * * 1-5")
             installer.upgrade()
         self.assertEqual(schedule.read(), values)
+
+    def test_discovery_metadata_is_updated_and_removed_on_uninstall(self):
+        installer.install()
+        root = Path(DBMDynIP.INSTALL_DIR)
+        constants = root / "bmdynip/constants/DBMDynIP.py"
+        constants.write_text('VERSION = "old release"\n')
+        root.chmod(0o700)
+        installer.upgrade()
+        with zipfile.ZipFile(root / "bin/bmdynip") as bundle:
+            self.assertEqual(constants.read_bytes(), bundle.read("bmdynip/constants/DBMDynIP.py"))
+        self.assertEqual(root.stat().st_mode & 0o777, 0o755)
+        installer.uninstall()
+        self.assertFalse(constants.exists())
+        self.assertTrue((root / "conf/bmdynip.json").exists())
+        self.assertTrue((root / "data").is_dir())
 
     def test_stop_failure_prevents_deployment(self):
         self.control.side_effect = subprocess.CalledProcessError(1, "systemctl stop")
