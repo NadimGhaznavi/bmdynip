@@ -26,24 +26,35 @@ def systemctl(*arguments: str) -> None:
     subprocess.run([DBMDynIP.SYSTEMCTL, *arguments], check=True, timeout=30)
 
 
-def restart() -> None:
+def start_web(action: str) -> None:
     service = Path(DBMDynIP.WEB_SERVICE_FILE).name
-    systemctl("restart", service)
+    systemctl(action, service)
     url = f"http://127.0.0.1:{DBMDynIP.WEB_PORT}/"
     opener = build_opener(ProxyHandler({}))
     deadline = time.monotonic() + 10
     while True:
-        systemctl("is-active", "--quiet", service)
         try:
+            systemctl("is-active", "--quiet", service)
             with opener.open(Request(url, method="HEAD"), timeout=1) as response:
                 if response.status != 200:
                     raise ValueError(f"Web UI returned HTTP {response.status} on port {DBMDynIP.WEB_PORT}.")
             break
+        except subprocess.CalledProcessError as error:
+            if error.returncode != 3:
+                raise
+            if time.monotonic() >= deadline:
+                raise ValueError(f"Web UI service did not become active; check "
+                                 f"journalctl -u {service}.") from None
+            time.sleep(0.1)
         except (URLError, TimeoutError):
             if time.monotonic() >= deadline:
                 raise ValueError(f"Web UI did not respond on port {DBMDynIP.WEB_PORT}.") from None
             time.sleep(0.1)
     print(f"BMDynIP Web UI: active on port {DBMDynIP.WEB_PORT} (listening on {DBMDynIP.WEB_HOST})")
+
+
+def restart() -> None:
+    start_web("restart")
 
 
 def read_token() -> str:
@@ -64,7 +75,7 @@ def read_token() -> str:
         raise ValueError("No GoDaddy PAT was supplied.") from None
 
 
-def install() -> None:
+def install(*, upgrading: bool = False) -> None:
     for executable in ("/usr/bin/python3", "/usr/bin/curl", "/usr/bin/logger",
                        DBMDynIP.GODADDY_CLI, DBMDynIP.SYSTEMCTL):
         if not os.access(executable, os.X_OK):
@@ -73,6 +84,8 @@ def install() -> None:
     config = root / "conf" / "bmdynip.json"
     Configuration.load(config if config.exists() else REPOSITORY / "conf" / "bmdynip.json")
     Credentials.provision(Path(DBMDynIP.CREDENTIALS_FILE), read_token)
+    if upgrading:
+        systemctl("stop", Path(DBMDynIP.WEB_SERVICE_FILE).name)
     for name in ("bin", "conf", "data"):
         (root / name).mkdir(parents=True, exist_ok=True)
         (root / name).chmod(0o700 if name != "bin" else 0o755)
@@ -126,9 +139,16 @@ def install() -> None:
     service.chmod(0o644)
     systemctl("daemon-reload")
     systemctl("enable", service.name)
-    restart()
+    if upgrading:
+        start_web("start")
+    else:
+        restart()
     print(f"Installed BMDynIP {DBMDynIP.VERSION}; cron runs every five minutes.")
     print(f"Configure DNS names in {config}. Existing configuration and data were preserved.")
+
+
+def upgrade() -> None:
+    install(upgrading=True)
 
 
 def uninstall() -> None:
@@ -150,7 +170,7 @@ def uninstall() -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("install", "uninstall", "restart"))
+    parser.add_argument("action", choices=("install", "upgrade", "uninstall", "restart"))
     args = parser.parse_args()
     if os.geteuid() != 0:
         print("Run this script as root.", file=sys.stderr)
@@ -160,7 +180,7 @@ def main() -> int:
         return 1
     os.umask(0o077)
     try:
-        {"install": install, "uninstall": uninstall, "restart": restart}[args.action]()
+        {"install": install, "upgrade": upgrade, "uninstall": uninstall, "restart": restart}[args.action]()
     except (OSError, ValueError, subprocess.SubprocessError) as error:
         print(f"BMDynIP: {error}", file=sys.stderr)
         return 1

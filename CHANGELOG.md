@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-10-04 @ 20:09
+
+### Fixed
+
+- Stop the Web UI before deploying an upgrade and start it afterward.
+- Allow the Web UI time to become active before failing its readiness check.
+
 ## [1.2.0] - 2026-10-04 @ 20:02
 
 ### Added

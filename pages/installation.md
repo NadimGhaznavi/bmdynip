@@ -64,6 +64,7 @@ git pull
 ./scripts/upgrade.sh
 ```
 
-This replaces the executable and cron job while preserving configuration,
-saved state, and credentials. It also replaces and restarts the Web UI,
-then prints its status and port. The upgrade script reuses the installer.
+This stops the Web UI, replaces the executables and cron job while preserving
+configuration, saved state, and credentials, then starts the Web UI and prints
+its status and port after checking readiness. If deployment fails after the
+service stops, fix the reported error and rerun the upgrade.
