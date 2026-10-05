@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-04 @ 20:37
+
 ### Added
 
 - Expose the runner cron schedule in the Web UI with an enabled checkbox,
