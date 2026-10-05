@@ -241,6 +241,9 @@ class InstallationTests(TemporaryFiles):
         schedule_root = patch("bmdynip.interface.RunnerSchedule.RunnerSchedule._require_root")
         schedule_root.start()
         self.addCleanup(schedule_root.stop)
+        database = patch.object(installer.DatabaseProvisioning, "provision")
+        database.start()
+        self.addCleanup(database.stop)
 
     @staticmethod
     def stage_dependencies(target):

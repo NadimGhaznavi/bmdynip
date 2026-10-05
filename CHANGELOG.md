@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Provision the local MariaDB database and account, save protected database
+  credentials, and apply the schema during installation and upgrades.
+- Retain existing database credentials and records when reapplying the schema.
+
 ## [1.3.0] - 2026-10-04 @ 20:37
 
 ### Added

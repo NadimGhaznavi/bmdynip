@@ -4,8 +4,9 @@ title: Database schema
 
 [Documentation index]({{ site.baseurl }}{% link index.md %})
 
-`schema/bmdynip-schema-v1.sql` defines the fresh MariaDB schema. It is not yet
-connected to the installer, Web UI, or updater.
+`schema/bmdynip-schema-v1.sql` defines the MariaDB schema used by the updater and
+Web UI APIs. The [installer]({{ site.baseurl }}{% link pages/installation.md %})
+applies it during installation and upgrades, retaining existing records.
 
 The model follows [OMG CWM 1.1](https://www.omg.org/spec/CWM/1.1/PDF/),
 sections 5.7 and 16.3–16.4, with CMDB's storage customizations. Model elements

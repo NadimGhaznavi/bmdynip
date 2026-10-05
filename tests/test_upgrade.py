@@ -93,6 +93,20 @@ class UpgradeDeploymentTests(unittest.TestCase):
         self.stack.enter_context(patch.object(RunnerSchedule, "_require_root"))
         self.dependencies = self.stack.enter_context(
             patch.object(installer, "install_dependencies", side_effect=self.stage_dependency))
+        self.database = self.stack.enter_context(patch.object(installer.DatabaseProvisioning, "provision"))
+
+    def test_database_failure_leaves_service_and_executables_untouched(self):
+        self.database.side_effect = ValueError("Database unavailable")
+        root = Path(DBMDynIP.INSTALL_DIR)
+        (root / "bin").mkdir(parents=True)
+        web = root / "bin/bmdynip-web"
+        web.write_bytes(b"old executable")
+        with patch.object(installer.Credentials, "provision"), self.assertRaisesRegex(ValueError, "Database"):
+            installer.upgrade()
+        self.control.assert_not_called()
+        self.dependencies.assert_not_called()
+        self.assertEqual(web.read_bytes(), b"old executable")
+        self.assertFalse(Path(DBMDynIP.CRON_FILE).exists())
 
     @staticmethod
     def stage_dependency(target):

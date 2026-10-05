@@ -21,6 +21,7 @@ from bmdynip.constants.DBMDynIP import DBMDynIP
 from bmdynip.interface.Configuration import Configuration
 from bmdynip.interface.Credentials import Credentials
 from bmdynip.interface.IpState import IpState
+from bmdynip.interface.DatabaseProvisioning import DatabaseProvisioning
 
 
 def systemctl(*arguments: str) -> None:
@@ -90,13 +91,14 @@ def install_dependencies(target: Path) -> None:
 
 def install(*, upgrading: bool = False) -> None:
     for executable in ("/usr/bin/python3", "/usr/bin/curl", "/usr/bin/logger",
-                       DBMDynIP.GODADDY_CLI, DBMDynIP.SYSTEMCTL):
+                       DBMDynIP.GODADDY_CLI, DBMDynIP.SYSTEMCTL, DBMDynIP.MARIADB):
         if not os.access(executable, os.X_OK):
             raise ValueError(f"Required executable is missing: {executable}")
     root = Path(DBMDynIP.INSTALL_DIR)
     config = root / "conf" / "bmdynip.json"
     Configuration.load(config if config.exists() else REPOSITORY / "conf" / "bmdynip.json")
     Credentials.provision(Path(DBMDynIP.CREDENTIALS_FILE), read_token)
+    DatabaseProvisioning(REPOSITORY / "schema/bmdynip-schema-v1.sql").provision()
     for name in ("bin", "conf", "data"):
         (root / name).mkdir(parents=True, exist_ok=True)
         (root / name).chmod(0o700 if name != "bin" else 0o755)
