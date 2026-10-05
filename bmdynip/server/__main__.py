@@ -29,7 +29,6 @@ ASSETS = {
     "/static/style.css": (SERVER_DIR / "static/style.css", "text/css; charset=utf-8"),
     "/static/ui.js": (SERVER_DIR / "static/ui.js", "text/javascript; charset=utf-8"),
     "/static/api.js": (SERVER_DIR / "static/api.js", "text/javascript; charset=utf-8"),
-    "/static/demo.js": (SERVER_DIR / "static/demo.js", "text/javascript; charset=utf-8"),
     "/static/schedule.js": (SERVER_DIR / "static/schedule.js", "text/javascript; charset=utf-8"),
     "/pages/images/bmdynip-logo.png": (
         LOGO, "image/png"),
@@ -46,13 +45,13 @@ class ControlHandler(BaseHTTPRequestHandler):
             self.schedule()
         elif self.path == '/api/snapshot':
             self.api('snapshot')
-        elif self.path == '/ready':
+        elif self.path == DBMDynIP.WEB_READY_PATH:
             self.api('ready')
         else:
             self.serve()
 
     def do_HEAD(self) -> None:
-        if self.path == '/ready':
+        if self.path == DBMDynIP.WEB_READY_PATH:
             self.api('ready')
         else:
             self.serve()
@@ -132,11 +131,9 @@ class ControlHandler(BaseHTTPRequestHandler):
                 name = data['name']
             db = self.server.db_factory()
             try:
-                if operation == 'ready':
-                    db.query('SELECT id FROM DnsRecord LIMIT 1')
-                    value, status = {'ready': True}, 200
-                elif operation == 'snapshot':
-                    value, status = UiDb(db).snapshot(self.server.domain), 200
+                if operation in ('ready', 'snapshot'):
+                    snapshot = UiDb(db).snapshot(self.server.domain)
+                    value, status = ({'ready': True} if operation == 'ready' else snapshot), 200
                 else:
                     with IpState(self.server.state_directory).lock() as acquired:
                         if not acquired:
@@ -160,7 +157,10 @@ class ControlHandler(BaseHTTPRequestHandler):
         except MySQLError:
             self.respond(503, {'error': 'Database unavailable.'})
         except (ValueError, UnicodeError):
-            self.respond(400, {'error': 'Invalid hostname or request.'})
+            if operation in ('ready', 'snapshot'):
+                self.respond(503, {'error': 'Server configuration unavailable.'})
+            else:
+                self.respond(400, {'error': 'Invalid hostname or request.'})
         except OSError:
             self.respond(503, {'error': 'Server configuration unavailable.'})
 

@@ -1,10 +1,10 @@
 ---
-title: Web interface preview
+title: Web interface
 ---
 
 [Documentation index]({{ site.baseurl }}{% link index.md %})
 
-Installation starts the Web UI preview as `bmdynip-web.service` on port `49700`
+Installation starts the Web UI as `bmdynip-web.service` on port `49700`
 and enables it at boot. Open `http://<server-address>:49700/`.
 To restart it from the checkout as root:
 
@@ -12,7 +12,8 @@ To restart it from the checkout as root:
 ./scripts/restart.sh
 ```
 
-The command checks that the service is active and HTTP responds, then prints:
+The command waits for an active service and a successful `/ready` database check,
+then prints:
 
 ```text
 BMDynIP Web UI: active on port 49700 (listening on 0.0.0.0)
@@ -20,7 +21,12 @@ BMDynIP Web UI: active on port 49700 (listening on 0.0.0.0)
 
 View service logs with `journalctl -u bmdynip-web.service`.
 
-From a development checkout, start a separate preview with Python 3.10 or newer:
+`GET /ready` and `HEAD /ready` return HTTP `200` when live status and DNS history
+can be read, or `503` when the database or its configuration is unavailable.
+Installation, upgrades, and restarts wait up to ten seconds for readiness.
+
+From a development checkout with configured database credentials and domain,
+start the Web UI with Python 3.10 or newer:
 
 ```sh
 python3 -m venv .venv
@@ -28,17 +34,24 @@ python3 -m venv .venv
 .venv/bin/python -m bmdynip.server
 ```
 
-Open `http://127.0.0.1:49700/`. To access the preview from another machine:
+Open `http://127.0.0.1:49700/`. To access it from another machine:
 
 ```sh
 .venv/bin/python -m bmdynip.server --host 0.0.0.0
 ```
 
-The interface has no authentication. It displays sample system status and A
-records for `osoyalce.com`. Add accepts a single hostname label, such as
-`wintermute`; nested names and the apex are excluded. Delete asks for confirmation.
+The interface has no authentication. It displays the configured domain, observed
+public IPv4 address, last check and update times, managed hostnames, and the latest
+100 DNS change requests. Status refreshes every five seconds; times use your
+browser's local timezone. An unavailable database shows an error and disables
+hostname changes until status can be refreshed.
 
-Hostname preview changes affect only the current browser page and reset on reload.
+**Add hostname** saves a single label, such as `wintermute`, to the database.
+Nested names and the apex are excluded. The runner applies the new hostname on
+its next execution. **Delete** asks for confirmation and stops managing the name;
+its existing GoDaddy A record and change history are retained. Hostname changes
+persist across reloads. If a save request times out, check the refreshed list
+before retrying.
 
 ## Runner schedule
 
@@ -51,4 +64,4 @@ already in progress finishes normally. Manual runs remain available.
 Schedule changes persist across reloads and upgrades. The Web UI service must
 run as root to save them. The cron updater runs independently of the Web UI service.
 
-Stop a development preview with Ctrl+C.
+Stop the development server with Ctrl+C.

@@ -16,7 +16,7 @@ from urllib.request import ProxyHandler, build_opener
 import zipfile
 import pymysql
 import crontab
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 from bmdynip.activity.UpdatePublicIp import UpdatePublicIp
 from bmdynip.app.main import main
@@ -197,10 +197,8 @@ class BoundaryTests(TemporaryFiles):
                 with self.assertRaises(ValueError):
                     GoDaddyCli("gd_pat_test_only").replace(DnsRecord("example.com", "api", IP))
 
-    def test_cli_end_to_end_and_failure_exit(self):
-        (self.root / "conf").mkdir()
+    def test_cli_uses_database_records_and_failure_exit(self):
         (self.root / "data").mkdir()
-        (self.root / "conf/bmdynip.json").write_text('{"domain":"example.com","hostnames":["api"]}')
         credential = self.credentials()
         outputs = [Mock(stdout="8.8.8.8"), Mock(stdout="8.8.8.8"),
                    Mock(returncode=0, stdout='{"data":{"failed":0,"deleted":1}}'),
@@ -208,6 +206,10 @@ class BoundaryTests(TemporaryFiles):
         with patch.object(DBMDynIP, "INSTALL_DIR", str(self.root)), \
              patch.object(DBMDynIP, "CREDENTIALS_FILE", str(credential)), \
              patch("bmdynip.app.main.os", Mock(geteuid=Mock(return_value=0))), \
+             patch("bmdynip.app.main.open_database", return_value=MagicMock()) as database, \
+             patch("bmdynip.app.main.DiscoveryCoordinator.run", return_value=7), \
+             patch("bmdynip.app.main.DnsRecordDb.list_records", return_value=RECORDS), \
+             patch("bmdynip.app.main.PublicIpDb"), \
              patch("sys.argv", ["bmdynip"]), patch("sys.stdout", new=io.StringIO()), \
              patch("sys.stderr", new=io.StringIO()):
             with patch("subprocess.run", side_effect=outputs):
@@ -216,6 +218,7 @@ class BoundaryTests(TemporaryFiles):
             with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("curl", 25)):
                 self.assertEqual(main(), 1)
             self.assertEqual((self.root / "data/state.json").read_bytes(), saved)
+        self.assertEqual(database.return_value.close.call_count, 2)
 
 
 class InstallationTests(TemporaryFiles):
@@ -241,6 +244,12 @@ class InstallationTests(TemporaryFiles):
         schedule_root = patch("bmdynip.interface.RunnerSchedule.RunnerSchedule._require_root")
         schedule_root.start()
         self.addCleanup(schedule_root.stop)
+        database = patch.object(installer.DatabaseProvisioning, "provision")
+        database.start()
+        self.addCleanup(database.stop)
+        migration = patch.object(installer, "migrate_configuration")
+        migration.start()
+        self.addCleanup(migration.stop)
 
     @staticmethod
     def stage_dependencies(target):
@@ -259,7 +268,8 @@ class InstallationTests(TemporaryFiles):
                          f"BMDynIP Web UI: active on port {DBMDynIP.WEB_PORT} "
                          f"(listening on {DBMDynIP.WEB_HOST})\n")
         request = self.opener.open.call_args.args[0]
-        self.assertEqual(request.full_url, f"http://127.0.0.1:{DBMDynIP.WEB_PORT}/")
+        self.assertEqual(request.full_url,
+                         f"http://127.0.0.1:{DBMDynIP.WEB_PORT}{DBMDynIP.WEB_READY_PATH}")
         self.assertEqual(request.get_method(), "HEAD")
 
     def test_restart_failure_does_not_report_success(self):
@@ -456,7 +466,14 @@ class InstallationTests(TemporaryFiles):
             listener.bind(("127.0.0.1", 0))
             port = listener.getsockname()[1]
         process = subprocess.Popen(
-            [str(executable), "--host", "127.0.0.1", "--port", str(port)],
+            ["/usr/bin/python3", "-B", "-c",
+             "import sys; sys.path.insert(0, sys.argv[1]); "
+             "from bmdynip.constants.DBMDynIP import DBMDynIP; "
+             "DBMDynIP.INSTALL_DIR = sys.argv[2]; "
+             "DBMDynIP.DATABASE_ENV = sys.argv[2] + '/missing-database.env'; "
+             "from bmdynip.server.__main__ import main; "
+             "sys.argv = ['bmdynip-web', '--host', '127.0.0.1', '--port', sys.argv[3]]; main()",
+             str(executable), str(executable.parents[1]), str(port)],
             cwd=self.root, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
         )
         try:
@@ -472,7 +489,7 @@ class InstallationTests(TemporaryFiles):
                         self.fail("Installed Web UI failed to start.")
                     time.sleep(0.05)
             self.assertIn(DBMDynIP.VERSION.encode(), body)
-            for path in ("/static/ui.js", "/static/demo.js", "/static/style.css",
+            for path in ("/static/ui.js", "/static/api.js", "/static/style.css",
                          "/pages/images/bmdynip-logo.png"):
                 with opener.open(f"http://127.0.0.1:{port}{path}", timeout=2) as response:
                     self.assertEqual(response.status, 200)

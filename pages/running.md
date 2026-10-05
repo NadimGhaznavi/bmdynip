@@ -4,9 +4,9 @@ author_profile: true
 layout: single
 ---
 
-[Documentation index]({% link index.md %})
+[Documentation index]({{ site.baseurl }}{% link index.md %})
 
-[Installation]({% link pages/installation.md %}) · [Configuration]({% link pages/configuration.md %}) · [Running and monitoring]({% link pages/running.md %})
+[Installation]({{ site.baseurl }}{% link pages/installation.md %}) · [Configuration]({{ site.baseurl }}{% link pages/configuration.md %}) · [Running and monitoring]({{ site.baseurl }}{% link pages/running.md %})
 
 Run these commands as root on the production host.
 
@@ -31,9 +31,14 @@ To run immediately as root:
 
 Both ipify and ifconfig.me must return the same public IPv4 address. Failed
 requests, invalid responses, or disagreement prevent DNS changes. Unchanged
-addresses produce no output. Overlapping runs are skipped using a file lock.
+addresses and managed names produce no output once successfully applied.
+Overlapping runs are skipped using a file lock. With no managed names, the runner
+still records the observed public IPv4 address without changing DNS.
 
 The saved IP and record names are written only after all DNS commands succeed.
+The Web UI shows the observed address, last check and successful update times,
+and DNS change history from MariaDB. A failed DNS operation appears there with
+its error; successfully applied record addresses are saved after the full run.
 Failures exit nonzero and are retried on the next cron run. Delete and add are
 separate operations: an add failure can leave the name without an A record
 until a retry succeeds. Multiple names are not updated atomically.
