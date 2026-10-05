@@ -17,10 +17,49 @@ let busy = false;
 let mutating = false;
 const dnsResults = new Map();
 const dnsPending = new Set();
+const hostnameRows = new Map();
+const messageRows = new Map();
+let snapshotRequest = 0;
+
+function text(node, value) {
+  if (node.textContent === value) return;
+  if (node.childNodes.length === 1 && node.firstChild.nodeType === Node.TEXT_NODE) {
+    node.firstChild.data = value;
+  } else {
+    node.textContent = value;
+  }
+}
+
+function attribute(node, name, value) {
+  if (node.getAttribute(name) !== value) node.setAttribute(name, value);
+}
+
+function toggleClass(node, name, enabled) {
+  if (node.classList.contains(name) !== enabled) node.classList.toggle(name, enabled);
+}
+
+function placeRows(container, desired) {
+  const keep = new Set(desired);
+  for (const row of [...container.children]) if (!keep.has(row)) row.remove();
+  desired.forEach((row, index) => {
+    if (container.children[index] !== row) container.insertBefore(row, container.children[index] || null);
+  });
+}
+
+function emptyRow(value, columns) {
+  const row = document.createElement('tr');
+  const td = cell(row, value);
+  td.colSpan = columns;
+  td.className = 'empty-state';
+  return row;
+}
+
+const noHostnames = emptyRow('No hostnames yet. Add a hostname above to get started.', 5);
+const noMessages = emptyRow('No DNS change history yet.', 3);
 
 function dnsBadge(badge, result) {
-  badge.textContent = result?.status || 'Checking DNS…';
-  badge.title = result?.dnsAddresses?.length ? `DNS: ${result.dnsAddresses.join(', ')}` : '';
+  text(badge, result?.status || 'Checking DNS…');
+  attribute(badge, 'title', result?.dnsAddresses?.length ? `DNS: ${result.dnsAddresses.join(', ')}` : '');
 }
 
 function checkDns(data) {
@@ -65,111 +104,135 @@ function message(value, error = false, invalid = false) {
 }
 
 function controls() {
-  addButton.disabled = !ready || busy;
-  input.disabled = !ready || mutating;
-  for (const button of rows.querySelectorAll('button')) button.disabled = !ready || busy;
+  for (const control of [addButton, input, ...rows.querySelectorAll('button')]) {
+    const disabled = !ready || mutating;
+    if (control.disabled !== disabled) control.disabled = disabled;
+  }
 }
 
 function time(node, value, fallback) {
   if (value) {
-    node.dateTime = value;
-    node.textContent = new Date(value).toLocaleString();
+    attribute(node, 'datetime', value);
+    text(node, new Date(value).toLocaleString());
   } else {
-    node.removeAttribute('datetime');
-    node.textContent = fallback;
+    if (node.hasAttribute('datetime')) node.removeAttribute('datetime');
+    text(node, fallback);
   }
 }
 
 function render(data) {
   current = data;
   const {records, messages} = data;
-  for (const node of document.querySelectorAll('.domain-name')) node.textContent = data.domain;
-  document.getElementById('domain-suffix').textContent = `.${data.domain}`;
-  document.getElementById('public-ip').textContent = data.publicIp || 'Awaiting first check';
+  for (const node of document.querySelectorAll('.domain-name')) text(node, data.domain);
+  text(document.getElementById('domain-suffix'), `.${data.domain}`);
+  text(document.getElementById('public-ip'), data.publicIp || 'Awaiting first check');
   time(document.getElementById('last-ip-check'), data.lastCheckedOn, 'Awaiting first check');
   time(document.getElementById('last-dns-update'), data.lastSubmittedOn || data.lastAppliedOn,
     'Awaiting first submission');
-  document.getElementById('worker-error-row').hidden = !data.lastError;
-  document.getElementById('worker-error').textContent = data.lastError || '';
-  document.getElementById('hostname-count').textContent = `${records.length} hostname${records.length === 1 ? '' : 's'}`;
-  connection.textContent = data.lastError ? 'Update failed' : 'Connected';
-  connection.classList.toggle('badge-error', Boolean(data.lastError));
-  connectionMessage.textContent = 'Live status refreshes every five seconds.';
-  connectionMessage.classList.remove('error');
-  rows.replaceChildren();
+  const errorRow = document.getElementById('worker-error-row');
+  if (errorRow.hidden !== !data.lastError) errorRow.hidden = !data.lastError;
+  text(document.getElementById('worker-error'), data.lastError || '');
+  text(document.getElementById('hostname-count'), `${records.length} hostname${records.length === 1 ? '' : 's'}`);
+  text(connection, data.lastError ? 'Update failed' : 'Connected');
+  toggleClass(connection, 'badge-error', Boolean(data.lastError));
+  text(connectionMessage, 'Live status refreshes every five seconds.');
+  toggleClass(connectionMessage, 'error', false);
+  const desiredHostnames = [];
   for (const record of records) {
-    const row = document.createElement('tr');
-    cell(row, code(record.hostname));
-    cell(row, 'A');
-    cell(row, record.address ? code(record.address) : 'Awaiting update');
-    const badge = document.createElement('span');
-    badge.className = 'badge badge-idle';
-    badge.dataset.dnsId = record.id;
+    let row = hostnameRows.get(record.id);
+    if (!row) {
+      row = document.createElement('tr');
+      cell(row, code(record.hostname));
+      cell(row, 'A');
+      cell(row, record.address ? code(record.address) : 'Awaiting update');
+      row.dataset.address = record.address || '';
+      const badge = document.createElement('span');
+      badge.className = 'badge badge-idle';
+      badge.dataset.dnsId = record.id;
+      cell(row, badge);
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'danger';
+      button.textContent = 'Delete';
+      button.addEventListener('click', () => {
+        deleting = current.records.find(value => value.id === record.id);
+        if (!deleting) return;
+        deleteTrigger = button;
+        text(document.getElementById('delete-name'), deleting.hostname);
+        dialog.showModal();
+      });
+      cell(row, button).className = 'actions';
+      hostnameRows.set(record.id, row);
+    }
+    text(row.cells[0].firstChild, record.hostname);
+    if (row.dataset.address !== (record.address || '')) {
+      if (record.address && row.cells[2].firstChild.nodeName === 'CODE') {
+        text(row.cells[2].firstChild, record.address);
+      } else {
+        row.cells[2].replaceChildren(record.address ? code(record.address) : 'Awaiting update');
+      }
+      row.dataset.address = record.address || '';
+    }
     const dns = dnsResults.get(record.id);
-    dnsBadge(badge, dns?.expectedAddress === (data.publicIp || record.address) ? dns : null);
-    cell(row, badge);
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'danger';
-    button.textContent = 'Delete';
-    button.setAttribute('aria-label', `Delete ${record.hostname}`);
-    button.addEventListener('click', () => {
-      deleting = record;
-      deleteTrigger = button;
-      document.getElementById('delete-name').textContent = record.hostname;
-      dialog.showModal();
-    });
-    cell(row, button).className = 'actions';
-    rows.append(row);
+    dnsBadge(row.cells[3].firstChild,
+      dns?.expectedAddress === (data.publicIp || record.address) ? dns : null);
+    attribute(row.cells[4].firstChild, 'aria-label', `Delete ${record.hostname}`);
+    desiredHostnames.push(row);
   }
-  if (!records.length) {
-    const row = document.createElement('tr');
-    const td = cell(row, 'No hostnames yet. Add a hostname above to get started.');
-    td.colSpan = 5;
-    td.className = 'empty-state';
-    rows.append(row);
-  }
-  activity.replaceChildren();
+  const identities = new Set(records.map(record => record.id));
+  for (const identity of hostnameRows.keys()) if (!identities.has(identity)) hostnameRows.delete(identity);
+  placeRows(rows, desiredHostnames.length ? desiredHostnames : [noHostnames]);
+
+  const desiredMessages = [];
+  const occurrences = new Map();
+  const messageKeys = new Set();
   for (const entry of messages) {
-    const row = document.createElement('tr');
-    const time = document.createElement('time');
-    time.dateTime = entry.timestamp;
-    time.textContent = new Date(entry.timestamp).toLocaleString();
-    cell(row, time);
-    cell(row, entry.source);
-    cell(row, entry.message);
-    activity.append(row);
+    const base = JSON.stringify([entry.timestamp, entry.source]);
+    const occurrence = occurrences.get(base) || 0;
+    occurrences.set(base, occurrence + 1);
+    const key = JSON.stringify([entry.timestamp, entry.source, occurrence]);
+    messageKeys.add(key);
+    let row = messageRows.get(key);
+    if (!row) {
+      row = document.createElement('tr');
+      cell(row, document.createElement('time'));
+      cell(row, entry.source);
+      cell(row, entry.message);
+      messageRows.set(key, row);
+    }
+    time(row.cells[0].firstChild, entry.timestamp, '');
+    text(row.cells[1], entry.source);
+    text(row.cells[2], entry.message);
+    desiredMessages.push(row);
   }
-  if (!messages.length) {
-    const row = document.createElement('tr');
-    const td = cell(row, 'No DNS change history yet.');
-    td.colSpan = 3;
-    td.className = 'empty-state';
-    activity.append(row);
-  }
+  for (const key of messageRows.keys()) if (!messageKeys.has(key)) messageRows.delete(key);
+  placeRows(activity, desiredMessages.length ? desiredMessages : [noMessages]);
 }
 
 async function loadSnapshot() {
+  const request = ++snapshotRequest;
   try {
     const data = await snapshot();
+    if (request !== snapshotRequest) return false;
     render(data);
     checkDns(data);
     ready = true;
     return true;
   } catch (error) {
     if (!(error instanceof ApiError)) throw error;
+    if (request !== snapshotRequest) return false;
     ready = false;
-    connection.textContent = 'Unavailable';
-    connection.classList.add('badge-error');
-    connectionMessage.textContent = `${error.message} ` +
-      (current ? 'Displayed values may be out of date. Retrying…' : 'Retrying…');
-    connectionMessage.classList.add('error');
+    text(connection, 'Unavailable');
+    toggleClass(connection, 'badge-error', true);
+    text(connectionMessage, `${error.message} ` +
+      (current ? 'Displayed values may be out of date. Retrying…' : 'Retrying…'));
+    toggleClass(connectionMessage, 'error', true);
     return false;
   }
 }
 
 async function refresh() {
-  if (busy || deleting || dialog.open) return;
+  if (busy || mutating || deleting || dialog.open) return;
   busy = true;
   controls();
   try {
@@ -181,7 +244,8 @@ async function refresh() {
 }
 
 async function changeRecord(operation, success, afterSave = () => {}) {
-  if (busy || !ready) return;
+  if (mutating || !ready) return;
+  snapshotRequest++;
   busy = mutating = true;
   controls();
   message('Saving…');
