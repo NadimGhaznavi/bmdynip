@@ -123,6 +123,27 @@ class FlowTests(TemporaryFiles):
         self.dns.replace.assert_not_called()
         self.assertFalse(self.state.path.exists())
 
+    def test_authentication_failure_is_visible_without_exposing_pat(self):
+        token = 'gd_pat_test"quoted\\only'
+        self.activity.dns = GoDaddyCli(token)
+        self.state.save(IPv4Address('1.1.1.1'), RECORDS)
+        saved = self.state.path.read_bytes()
+        failure = json.dumps({'error': {'code': 'ERROR', 'system': 'domain',
+                              'message': f'listing DNS records failed (HTTP 401 Unauthorized): {token}'}})
+        with patch('subprocess.run', return_value=Mock(returncode=2, stderr=failure)) as run:
+            with self.assertRaisesRegex(ValueError, 'HTTP 401 Unauthorized'):
+                self.activity.run(RECORDS)
+        run.assert_called_once()
+        self.assertEqual(self.state.path.read_bytes(), saved)
+        message = self.messages.snapshot()[-1]
+        self.assertEqual(message['source'], 'bmdynip.activity.UpdatePublicIp')
+        self.assertIn('HTTP 401 Unauthorized', message['message'])
+        self.assertIn("root's $HOME/.godaddy-cli", message['message'])
+        self.assertIn('scripts/upgrade.sh', message['message'])
+        self.assertIn('[redacted]', message['message'])
+        self.assertNotIn(token, message['message'])
+        self.assertNotIn('"code"', message['message'])
+
     def test_empty_configuration_does_nothing(self):
         self.assertFalse(self.activity.run(()))
         self.public_ip.current_address.assert_not_called()

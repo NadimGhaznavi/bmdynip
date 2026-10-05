@@ -28,7 +28,19 @@ class GoDaddyCli:
         )
         context = f"gddy {action} {record.name}.{record.domain}"
         if result.returncode:
-            detail = result.stderr.strip().replace(self.token, "[redacted]")
+            detail = result.stderr.strip()
+            try:
+                failure = json.loads(detail)
+            except ValueError:
+                failure = None
+            if isinstance(failure, dict) and isinstance(failure.get('error'), dict):
+                message = failure['error'].get('message')
+                if isinstance(message, str):
+                    detail = message
+            detail = detail.replace(self.token, "[redacted]")
+            if 'HTTP 401' in detail:
+                detail += ('; GoDaddy rejected the configured PAT. Replace the PAT in root\'s '
+                           '$HOME/.godaddy-cli and run scripts/upgrade.sh to refresh the installed credential.')
             raise ValueError(f"{context} failed ({result.returncode}): {detail}")
         try:
             data = json.loads(result.stdout)["data"]
