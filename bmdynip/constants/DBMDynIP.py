@@ -4,7 +4,7 @@ from typing import Final
 
 
 class DBMDynIP:
-    VERSION: Final[str] = "1.6.1"
+    VERSION: Final[str] = "1.6.3"
     WEB_HOST: Final[str] = "0.0.0.0"
     WEB_PORT: Final[int] = 49700
     WEB_REQUEST_TIMEOUT: Final[int] = 15

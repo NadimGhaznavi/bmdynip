@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.3] - 2026-10-04 @ 23:22
+
 ### Fixed
 
 - Invoke `gddy` with root's configured authentication instead of overriding it
