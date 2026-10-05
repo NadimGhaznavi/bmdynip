@@ -42,7 +42,9 @@ Open `http://127.0.0.1:49700/`. To access it from another machine:
 
 The interface has no authentication. It displays the configured domain, observed
 public IPv4 address, last check and update times, managed hostnames, and the latest
-100 DNS change requests. Status refreshes every five seconds; times use your
+100 DNS change requests alongside recent process messages. Messages show hostname
+addition, runner launch, discovery, DNS updates, and completion or failure, with
+the emitting module as the source. Status refreshes every five seconds; times use your
 browser's local timezone. An unavailable database shows an error and disables
 hostname changes until status can be refreshed.
 

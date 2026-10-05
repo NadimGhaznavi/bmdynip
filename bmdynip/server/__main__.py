@@ -20,6 +20,7 @@ from bmdynip.interface.IpState import IpState
 from bmdynip.interface.UiDb import UiDb
 from bmdynip.interface.RunnerSchedule import RunnerSchedule
 from bmdynip.interface.RunnerProcess import RunnerProcess
+from bmdynip.interface.StatusMessages import StatusMessages
 
 
 SERVER_DIR = files("bmdynip.server")
@@ -121,6 +122,7 @@ class ControlHandler(BaseHTTPRequestHandler):
     def api(self, operation, identity=None):
         if operation in ('add', 'remove') and not self.allow_write():
             return
+        messages = StatusMessages(self.server.state_directory / DBMDynIP.STATUS_MESSAGES_FILE)
         try:
             name = None
             if operation == 'add':
@@ -135,6 +137,10 @@ class ControlHandler(BaseHTTPRequestHandler):
             try:
                 if operation in ('ready', 'snapshot'):
                     snapshot = UiDb(db).snapshot(self.server.domain)
+                    if operation == 'snapshot':
+                        snapshot['messages'] = sorted(snapshot['messages'] + messages.snapshot(),
+                                                      key=lambda entry: entry['timestamp'],
+                                                      reverse=True)[:StatusMessages.LIMIT]
                     value, status = ({'ready': True} if operation == 'ready' else snapshot), 200
                 else:
                     with IpState(self.server.state_directory).lock() as acquired:
@@ -151,11 +157,14 @@ class ControlHandler(BaseHTTPRequestHandler):
             finally:
                 db.close()
             if operation == 'add':
+                messages.append(f'Added {name.strip().lower()}.{self.server.domain}; starting the runner.')
                 try:
                     self.server.start_runner()
                     value['runnerStarted'] = True
                 except OSError:
                     logging.exception('Hostname saved but the immediate runner could not start')
+                    messages.append('Hostname saved, but the runner could not start. Check the service log; '
+                                    'the next scheduled run will retry.')
                     value['runnerStarted'] = False
             self.respond(status, value)
         except IntegrityError as error:
@@ -200,10 +209,12 @@ def main() -> None:
     args = parser.parse_args()
     if not 1 <= args.port <= 65535:
         parser.error("--port must be between 1 and 65535.")
-    with closing(RunnerProcess()) as runner, ThreadingHTTPServer((args.host, args.port), ControlHandler) as server:
+    state_directory = Path(DBMDynIP.INSTALL_DIR) / 'data'
+    messages = StatusMessages(state_directory / DBMDynIP.STATUS_MESSAGES_FILE)
+    with closing(RunnerProcess(messages)) as runner, ThreadingHTTPServer((args.host, args.port), ControlHandler) as server:
         server.db_factory = open_database
         server.domain = Configuration.domain(Path(DBMDynIP.INSTALL_DIR) / 'conf/bmdynip.json')
-        server.state_directory = Path(DBMDynIP.INSTALL_DIR) / 'data'
+        server.state_directory = state_directory
         server.runner_schedule = RunnerSchedule()
         server.start_runner = runner.start
         print(f"BMDynIP Web UI: http://{args.host}:{server.server_port}/", flush=True)

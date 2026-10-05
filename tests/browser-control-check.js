@@ -35,12 +35,15 @@ try {
   assert(contains('failed.example.test') && node('#hostname-rows').textContent.includes('Pending'), 'Unapplied record is pending');
   assert(!node('#worker-error-row').hidden && node('#worker-error').textContent.includes('Provider unavailable'), 'Last worker error is displayed');
   assert(!node('#worker-error img') && !node('#activity-rows img') && !frame.contentWindow.injected, 'Error text is rendered as text');
-  const history = node('#activity-rows').textContent;
+  const history = [...node('#activity-rows').children].map(row => row.textContent);
   const initialCount = node('#hostname-rows').children.length;
   await add(' NewHost ');
   await wait(() => contains('newhost.example.test') && ready(), 'new hostname saved');
   assert(node('#hostname-feedback').textContent.startsWith('Added newhost.example.test.'), 'Add reports a committed save');
   assert(node('#hostname-feedback').textContent.includes('Runner started.'), 'Add reports immediate runner launch');
+  assert(node('#activity-rows').textContent.includes('Added newhost.example.test; starting the runner.'),
+    'Hostname addition appears in status messages');
+  assert(node('#activity-rows').textContent.includes('bmdynip.server.__main__'), 'Status source is a module name');
   await add('newhost');
   await wait(() => node('#hostname-feedback').textContent.includes('already exists') && ready(), 'duplicate rejected');
   assert(node('#hostname-rows').children.length === initialCount + 1, 'Duplicate does not create another row');
@@ -65,7 +68,8 @@ try {
   node('#confirm-delete').click();
   await wait(() => !contains('newhost.example.test') && ready(), 'delete saved');
   assert(node('#hostname-feedback').textContent.includes('GoDaddy record was retained'), 'Delete explains retained DNS record');
-  assert(node('#activity-rows').textContent === history, 'Existing change history is retained');
+  assert(history.every(entry => [...node('#activity-rows').children].some(row => row.textContent === entry)),
+    'Existing change history is retained');
 
   const win = frame.contentWindow;
   const originalFetch = win.fetch.bind(win);
