@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import logging
 import re
 from urllib.parse import urlsplit
 
@@ -16,6 +17,7 @@ from bmdynip.interface.Configuration import Configuration
 from bmdynip.interface.DnsRecordDb import DnsRecordDb
 from bmdynip.interface.IpState import IpState
 from bmdynip.interface.UiDb import UiDb
+from bmdynip.interface.RunnerSchedule import RunnerSchedule
 
 
 SERVER_DIR = files("bmdynip.server")
@@ -27,6 +29,8 @@ ASSETS = {
     "/static/style.css": (SERVER_DIR / "static/style.css", "text/css; charset=utf-8"),
     "/static/ui.js": (SERVER_DIR / "static/ui.js", "text/javascript; charset=utf-8"),
     "/static/api.js": (SERVER_DIR / "static/api.js", "text/javascript; charset=utf-8"),
+    "/static/demo.js": (SERVER_DIR / "static/demo.js", "text/javascript; charset=utf-8"),
+    "/static/schedule.js": (SERVER_DIR / "static/schedule.js", "text/javascript; charset=utf-8"),
     "/pages/images/bmdynip-logo.png": (
         LOGO, "image/png"),
 }
@@ -38,7 +42,9 @@ class ControlHandler(BaseHTTPRequestHandler):
         self.connection.settimeout(DBMDynIP.WEB_REQUEST_TIMEOUT)
 
     def do_GET(self) -> None:
-        if self.path == '/api/snapshot':
+        if self.path == '/api/runner-schedule':
+            self.schedule()
+        elif self.path == '/api/snapshot':
             self.api('snapshot')
         elif self.path == '/ready':
             self.api('ready')
@@ -52,6 +58,9 @@ class ControlHandler(BaseHTTPRequestHandler):
             self.serve()
 
     def do_POST(self) -> None:
+        if self.path == '/api/runner-schedule':
+            self.schedule(mutating=True)
+            return
         if self.path != '/api/records':
             self.respond(404, {'error': 'Not found.'})
             return
@@ -75,18 +84,42 @@ class ControlHandler(BaseHTTPRequestHandler):
         if self.command != 'HEAD':
             self.wfile.write(body)
 
+    def allow_write(self):
+        # JSON-only, same-origin writes prevent cross-site browser submissions.
+        origin = self.headers.get('Origin')
+        if ((origin and urlsplit(origin).netloc != self.headers.get('Host'))
+                or self.headers.get('Sec-Fetch-Site') == 'cross-site'):
+            self.respond(403, {'error': 'Cross-origin writes are not allowed.'})
+            return False
+        if self.headers.get('Content-Type') != 'application/json':
+            self.respond(415, {'error': 'Use application/json.'})
+            return False
+        return True
+
+    def schedule(self, mutating=False):
+        if mutating and not self.allow_write():
+            return
+        try:
+            if mutating:
+                length = int(self.headers.get('Content-Length', '0'))
+                if not 1 <= length <= 1024:
+                    raise ValueError('Invalid request size.')
+                values = json.loads(self.rfile.read(length))
+                if not isinstance(values, dict) or set(values) != {'enabled', 'expression'}:
+                    raise ValueError('Provide an enabled flag and a five-field cron expression.')
+                values = self.server.runner_schedule.update(**values)
+            else:
+                values = self.server.runner_schedule.read()
+            self.respond(200, {'schedule': values})
+        except (ValueError, UnicodeError) as error:
+            self.respond(400 if mutating else 503, {'error': str(error)})
+        except OSError:
+            logging.exception('Could not access the runner cron entry')
+            self.respond(503, {'error': 'Could not access the runner cron entry. Check the service log and retry.'})
+
     def api(self, operation, identity=None):
-        mutating = operation in ('add', 'remove')
-        if mutating:
-            # JSON-only, same-origin writes prevent cross-site browser submissions.
-            origin = self.headers.get('Origin')
-            if ((origin and urlsplit(origin).netloc != self.headers.get('Host'))
-                    or self.headers.get('Sec-Fetch-Site') == 'cross-site'):
-                self.respond(403, {'error': 'Cross-origin writes are not allowed.'})
-                return
-            if self.headers.get('Content-Type') != 'application/json':
-                self.respond(415, {'error': 'Use application/json.'})
-                return
+        if operation in ('add', 'remove') and not self.allow_write():
+            return
         try:
             name = None
             if operation == 'add':
@@ -162,6 +195,7 @@ def main() -> None:
         server.db_factory = open_database
         server.domain = Configuration.domain(Path(DBMDynIP.INSTALL_DIR) / 'conf/bmdynip.json')
         server.state_directory = Path(DBMDynIP.INSTALL_DIR) / 'data'
+        server.runner_schedule = RunnerSchedule()
         print(f"BMDynIP Web UI: http://{args.host}:{server.server_port}/", flush=True)
         try:
             server.serve_forever()
