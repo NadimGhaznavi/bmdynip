@@ -38,8 +38,9 @@ still records the observed public IPv4 address without changing DNS.
 DNS commands run in detached processes. Each deletes the matching A record and
 then adds the submitted address if deletion succeeds. The runner saves the IP
 and record names after launching all commands, without waiting for completion
-or parsing their output. The Web UI shows the submitted address, a **Submitted**
-status, and the last submission time; these do not confirm the provider's result.
+or parsing their output. The Web UI shows the submitted address and last
+submission time. Its status column independently checks DNS when the page loads
+and refreshes; DNS caching can delay visible changes.
 
 A launch failure exits nonzero and preserves the previous saved state for retry.
 Errors from detached commands go to the service log or cron output. To retry a

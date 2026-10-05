@@ -23,6 +23,8 @@ from bmdynip.interface.DatabaseProvisioning import DatabaseProvisioning
 from bmdynip.interface.DbMgr import DbMgr
 from bmdynip.interface.DiscoveryDb import DiscoveryDb
 from bmdynip.interface.DnsRecordDb import DnsRecordDb
+from bmdynip.interface.DnsLookup import DnsLookup
+from bmdynip.interface.UiDb import UiDb
 from bmdynip.interface.IpState import IpState
 from bmdynip.interface.PublicIpDb import PublicIpDb
 from bmdynip.interface.RunnerSchedule import RunnerSchedule
@@ -118,12 +120,40 @@ class ApiRequestTests(unittest.TestCase):
         self.assertEqual(self.request()[0], 409)
         self.server.start_runner.assert_not_called()
 
+    def test_dns_checks_registered_name_after_closing_database(self):
+        snapshot = {'publicIp': '8.8.8.8', 'records': [
+            {'id': 7, 'hostname': 'home.example.test', 'address': None}]}
+        result = {'status': 'Current', 'dnsAddresses': ['8.8.8.8'], 'expectedAddress': '8.8.8.8'}
+        def check(hostname, expected):
+            self.db.close.assert_called_once()
+            self.assertEqual((hostname, expected), ('home.example.test', '8.8.8.8'))
+            return result
+        with patch.object(UiDb, 'snapshot', return_value=snapshot), \
+                patch.object(DnsLookup, 'check', side_effect=check):
+            self.assertEqual(self.request('/api/records/7/dns', 'GET'), (200, result))
+        self.db.insert.assert_not_called()
+        self.server.start_runner.assert_not_called()
+
+    def test_dns_only_checks_existing_records(self):
+        with patch.object(UiDb, 'snapshot', return_value={'records': [], 'publicIp': None}), \
+                patch.object(DnsLookup, 'check') as lookup:
+            self.assertEqual(self.request('/api/records/7/dns', 'GET'),
+                             (404, {'error': 'Record not found.'}))
+        lookup.assert_not_called()
+
 
 class LiveControlFixture(unittest.TestCase):
     def setUp(self):
         directory = tempfile.TemporaryDirectory(prefix="bmdynip-live-control-")
         self.addCleanup(directory.cleanup)
         self.root = Path(directory.name)
+        def check_dns(hostname, expected):
+            addresses = [] if hostname.startswith('failed.') else [expected] if expected else []
+            return {'dnsAddresses': addresses, 'expectedAddress': expected,
+                    'status': 'Current' if addresses else 'Not found'}
+        dns = patch.object(DnsLookup, 'check', side_effect=check_dns)
+        self.dns_lookup = dns.start()
+        self.addCleanup(dns.stop)
         self.socket = os.environ["BMDYNIP_TEST_DB_SOCKET"]
         name = "bmdynip_ui_" + uuid4().hex[:12]
         self.database = name

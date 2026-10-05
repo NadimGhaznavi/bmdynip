@@ -27,6 +27,8 @@ class DBMDynIP:
     CRON_FILE: Final[str] = "/etc/cron.d/bmdynip"
     GODADDY_CLI: Final[str] = "/opt/prod/godaddy-cli/gddy"
     DNS_SHELL: Final[str] = "/bin/sh"
+    GETENT: Final[str] = "/usr/bin/getent"
+    DNS_LOOKUP_TIMEOUT: Final[int] = 3
     CRON_SCHEDULE: Final[str] = "*/5 * * * *"
     PUBLIC_IP_URLS: Final[tuple[str, ...]] = (
         "https://api.ipify.org",

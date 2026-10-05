@@ -55,8 +55,13 @@ output to the service log. Check authentication with the
 **Add hostname** saves a single label, such as `wintermute`, to the database.
 Nested names and the apex are excluded. Saving a hostname starts the installed
 runner immediately. It dispatches ordered DNS delete/add commands without waiting
-for completion. The submitted address and **Submitted** status appear on the next
-refresh; they do not confirm the provider's result.
+for completion. The submitted address appears on the next refresh.
+The status column checks each registered hostname through the server's DNS resolver
+on page load and each refresh. **Current** means its A addresses match the expected
+public IP; **Mismatch** means they differ. **Not found** means no A address was
+returned, and **Lookup failed** means the check could not complete. Hover over a
+status to see the resolved addresses. DNS caching can delay visible changes.
+If the expected IP is not yet known, **Resolved** means DNS returned an A address.
 If the runner cannot start, the saved hostname remains available for the next
 scheduled or manual run and the interface shows an error.
 **Delete** asks for confirmation and stops managing the name;

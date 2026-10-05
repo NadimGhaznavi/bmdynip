@@ -21,6 +21,7 @@ from bmdynip.interface.UiDb import UiDb
 from bmdynip.interface.RunnerSchedule import RunnerSchedule
 from bmdynip.interface.RunnerProcess import RunnerProcess
 from bmdynip.interface.StatusMessages import StatusMessages
+from bmdynip.interface.DnsLookup import DnsLookup
 
 
 SERVER_DIR = files("bmdynip.server")
@@ -44,7 +45,10 @@ class ControlHandler(BaseHTTPRequestHandler):
         self.connection.settimeout(DBMDynIP.WEB_REQUEST_TIMEOUT)
 
     def do_GET(self) -> None:
-        if self.path == '/api/runner-schedule':
+        match = re.fullmatch(r'/api/records/([1-9][0-9]*)/dns', self.path)
+        if match:
+            self.api('dns', int(match[1]))
+        elif self.path == '/api/runner-schedule':
             self.schedule()
         elif self.path == '/api/snapshot':
             self.api('snapshot')
@@ -135,7 +139,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                 name = data['name']
             db = self.server.db_factory()
             try:
-                if operation in ('ready', 'snapshot'):
+                if operation in ('ready', 'snapshot', 'dns'):
                     snapshot = UiDb(db).snapshot(self.server.domain)
                     if operation == 'snapshot':
                         snapshot['messages'] = sorted(snapshot['messages'] + messages.snapshot(),
@@ -156,6 +160,12 @@ class ControlHandler(BaseHTTPRequestHandler):
                                 value, status = ({'removed': True}, 200) if removed else ({'error': 'Record not found.'}, 404)
             finally:
                 db.close()
+            if operation == 'dns':
+                record = next((row for row in snapshot['records'] if row['id'] == identity), None)
+                if record is None:
+                    self.respond(404, {'error': 'Record not found.'})
+                    return
+                value = DnsLookup().check(record['hostname'], snapshot['publicIp'] or record['address'])
             if operation == 'add':
                 messages.append(f'Added {name.strip().lower()}.{self.server.domain}; starting the runner.')
                 try:
@@ -175,7 +185,7 @@ class ControlHandler(BaseHTTPRequestHandler):
         except MySQLError:
             self.respond(503, {'error': 'Database unavailable.'})
         except (ValueError, UnicodeError):
-            if operation in ('ready', 'snapshot'):
+            if operation in ('ready', 'snapshot', 'dns'):
                 self.respond(503, {'error': 'Server configuration unavailable.'})
             else:
                 self.respond(400, {'error': 'Invalid hostname or request.'})

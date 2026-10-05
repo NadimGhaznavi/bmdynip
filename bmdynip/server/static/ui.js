@@ -1,4 +1,4 @@
-import {ApiError, snapshot, addRecord, removeRecord} from './api.js';
+import {ApiError, snapshot, dnsStatus, addRecord, removeRecord} from './api.js';
 
 const form = document.getElementById('add-hostname');
 const input = document.getElementById('hostname');
@@ -15,6 +15,34 @@ let current = null;
 let ready = false;
 let busy = false;
 let mutating = false;
+const dnsResults = new Map();
+const dnsPending = new Set();
+
+function dnsBadge(badge, result) {
+  badge.textContent = result?.status || 'Checking DNS…';
+  badge.title = result?.dnsAddresses?.length ? `DNS: ${result.dnsAddresses.join(', ')}` : '';
+}
+
+function checkDns(data) {
+  for (const record of data.records) {
+    if (dnsPending.has(record.id)) continue;
+    dnsPending.add(record.id);
+    const expectedAddress = data.publicIp || record.address;
+    dnsStatus(record.id).catch(error => {
+      if (!(error instanceof ApiError)) throw error;
+      return {status: 'Lookup failed', dnsAddresses: [], expectedAddress};
+    }).then(result => {
+      const present = current?.records.find(row => row.id === record.id);
+      if (!present || result.expectedAddress !== (current.publicIp || present.address)) return;
+      dnsResults.set(record.id, result);
+      const badge = rows.querySelector(`[data-dns-id="${record.id}"]`);
+      if (badge) dnsBadge(badge, result);
+    }).finally(() => dnsPending.delete(record.id));
+  }
+  for (const identity of dnsResults.keys()) {
+    if (!data.records.some(record => record.id === identity)) dnsResults.delete(identity);
+  }
+}
 
 function cell(row, value) {
   const td = document.createElement('td');
@@ -76,7 +104,9 @@ function render(data) {
     cell(row, record.address ? code(record.address) : 'Awaiting update');
     const badge = document.createElement('span');
     badge.className = 'badge badge-idle';
-    badge.textContent = record.status;
+    badge.dataset.dnsId = record.id;
+    const dns = dnsResults.get(record.id);
+    dnsBadge(badge, dns?.expectedAddress === (data.publicIp || record.address) ? dns : null);
     cell(row, badge);
     const button = document.createElement('button');
     button.type = 'button';
@@ -121,7 +151,9 @@ function render(data) {
 
 async function loadSnapshot() {
   try {
-    render(await snapshot());
+    const data = await snapshot();
+    render(data);
+    checkDns(data);
     ready = true;
     return true;
   } catch (error) {

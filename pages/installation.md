@@ -16,7 +16,7 @@ the production host. Run repository commands from your BMDynIP checkout.
 
 ## Install
 
-The host needs Linux with systemd, Python 3.10 or newer with venv support, curl,
+The host needs Linux with systemd, Python 3.10 or newer with venv support, curl, getent,
 logger, a running cron daemon, a running MariaDB server with the `mariadb` client,
 and `/opt/prod/godaddy-cli/gddy`.
 On Debian or Ubuntu, install `python3-venv`. Installation and upgrades require
