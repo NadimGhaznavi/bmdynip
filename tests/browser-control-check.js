@@ -28,11 +28,12 @@ const outage = async failed => {
 
 try {
   await wait(ready, 'initial live snapshot');
+  await wait(() => !node('#hostname-rows').textContent.includes('Checking DNS'), 'initial DNS lookups');
   assert(node('#domain-suffix').textContent === '.example.test', 'Configured domain is displayed');
   assert(node('#public-ip').textContent === '8.8.8.8', 'Observed public IP is displayed');
   assert(node('#last-ip-check').dateTime && node('#last-dns-update').dateTime, 'Check and update times are displayed');
   assert(contains('existing.example.test') && node('#hostname-rows').textContent.includes('Current'), 'Applied record is current');
-  assert(contains('failed.example.test') && node('#hostname-rows').textContent.includes('Pending'), 'Unapplied record is pending');
+  assert(contains('failed.example.test') && node('#hostname-rows').textContent.includes('Not found'), 'Missing DNS record is shown');
   assert(!node('#worker-error-row').hidden && node('#worker-error').textContent.includes('Provider unavailable'), 'Last worker error is displayed');
   assert(!node('#worker-error img') && !node('#activity-rows img') && !frame.contentWindow.injected, 'Error text is rendered as text');
   const history = [...node('#activity-rows').children].map(row => row.textContent);

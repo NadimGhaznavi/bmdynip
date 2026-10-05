@@ -101,7 +101,7 @@ def migrate_configuration(config: Path) -> None:
 
 def install(*, upgrading: bool = False) -> None:
     for executable in ("/usr/bin/python3", "/usr/bin/curl", "/usr/bin/logger",
-                       DBMDynIP.GODADDY_CLI, DBMDynIP.SYSTEMCTL, DBMDynIP.MARIADB):
+                       DBMDynIP.GODADDY_CLI, DBMDynIP.SYSTEMCTL, DBMDynIP.MARIADB, DBMDynIP.GETENT):
         if not os.access(executable, os.X_OK):
             raise ValueError(f"Required executable is missing: {executable}")
     root = Path(DBMDynIP.INSTALL_DIR)

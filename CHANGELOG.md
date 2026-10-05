@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Check registered hostnames through DNS on page load and each refresh, showing
+  Current, Mismatch, Not found, or Lookup failed in the status column.
+
+### Changed
+
+- Dispatch ordered GoDaddy DNS commands without waiting for completion or parsing
+  their output. Save and display the submitted address immediately.
+
 ## [1.6.3] - 2026-10-04 @ 23:22
 
 ### Fixed

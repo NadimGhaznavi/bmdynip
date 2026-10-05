@@ -123,24 +123,15 @@ class FlowTests(TemporaryFiles):
         self.dns.replace.assert_not_called()
         self.assertFalse(self.state.path.exists())
 
-    def test_authentication_failure_is_visible_without_exposing_pat(self):
-        token = 'gd_pat_test"quoted\\only'
+    def test_launch_failure_preserves_saved_state(self):
         self.activity.dns = GoDaddyCli()
         self.state.save(IPv4Address('1.1.1.1'), RECORDS)
         saved = self.state.path.read_bytes()
-        failure = json.dumps({'error': {'code': 'ERROR', 'system': 'domain',
-                              'message': f'listing DNS records failed (HTTP 401 Unauthorized): {token}'}})
-        with patch('subprocess.run', return_value=Mock(returncode=2, stderr=failure)) as run:
-            with self.assertRaisesRegex(ValueError, 'HTTP 401 Unauthorized'):
+        with patch('subprocess.Popen', side_effect=OSError('cannot launch DNS shell')):
+            with self.assertRaisesRegex(OSError, 'cannot launch DNS shell'):
                 self.activity.run(RECORDS)
-        run.assert_called_once()
         self.assertEqual(self.state.path.read_bytes(), saved)
-        message = self.messages.snapshot()[-1]
-        self.assertEqual(message['source'], 'bmdynip.activity.UpdatePublicIp')
-        self.assertIn('HTTP 401 Unauthorized', message['message'])
-        self.assertIn('[redacted]', message['message'])
-        self.assertNotIn(token, message['message'])
-        self.assertNotIn('"code"', message['message'])
+        self.assertIn('cannot launch DNS shell', self.messages.snapshot()[-1]['message'])
 
     def test_empty_configuration_does_nothing(self):
         self.assertFalse(self.activity.run(()))
@@ -189,55 +180,57 @@ class BoundaryTests(TemporaryFiles):
         with self.assertRaises(ValueError):
             Credentials.load(path)
 
-    def test_godaddy_delete_add_uses_inherited_authentication(self):
-        results = [Mock(returncode=0, stdout=json.dumps({"data": {"failed": 0, "deleted": 0}})),
-                   Mock(returncode=0, stdout=json.dumps({"data": {"failed": 0, "created": 1}}))]
-        with patch.dict(os.environ, {"GDDY_PAT_PROD": "gd_pat_other"}), \
-             patch("subprocess.run", side_effect=results) as run:
-            GoDaddyCli().replace(DnsRecord("example.com", "api", IP))
-        self.assertEqual([c.args[0][2] for c in run.call_args_list], ["delete", "add"])
-        for call in run.call_args_list:
-            self.assertNotIn("env", call.kwargs)
-            self.assertEqual(call.args[0][call.args[0].index("--env") + 1], "prod")
-            self.assertNotIn("gd_pat_test_only", " ".join(call.args[0]))
-            self.assertEqual(call.kwargs["stdin"], subprocess.DEVNULL)
-        self.assertIn("8.8.8.8", run.call_args.args[0])
+    def test_godaddy_dispatch_does_not_wait_or_capture_output(self):
+        with patch('subprocess.Popen') as launch:
+            GoDaddyCli().replace(DnsRecord('example.com', 'api', IP))
+        command = launch.call_args.args[0]
+        self.assertEqual(command[:2], [DBMDynIP.DNS_SHELL, '-c'])
+        self.assertIn('dns delete', command[2])
+        self.assertIn(' && ', command[2])
+        self.assertIn('dns add', command[2])
+        self.assertIn('--data 8.8.8.8', command[2])
+        self.assertEqual(launch.call_args.kwargs,
+                         {'stdin': subprocess.DEVNULL, 'start_new_session': True})
+        launch.return_value.wait.assert_not_called()
+        launch.return_value.communicate.assert_not_called()
 
-    def test_reported_partial_failure_stops_before_add(self):
-        with patch("subprocess.run", return_value=Mock(returncode=0, stdout='{"data":{"failed":1,"deleted":0}}')) as run:
-            with self.assertRaises(ValueError):
-                GoDaddyCli().replace(DnsRecord("example.com", "api", IP))
-            self.assertEqual(run.call_count, 1)
-
-    def test_direct_subprocess_preserves_gddy_authentication_environment(self):
+    def test_detached_commands_run_in_order_with_inherited_authentication(self):
         executable = self.root / 'gddy'
-        executable.write_text('''#!/bin/sh
-if [ "$GDDY_PAT_PROD" != "gd_pat_working" ]; then
-  echo 'Configured gddy authentication was overridden' >&2
-  exit 2
-fi
-case "$2" in
-  delete) echo '{"data":{"failed":0,"deleted":1}}' ;;
-  add) echo '{"data":{"failed":0,"created":1}}' ;;
-  *) exit 2 ;;
-esac
+        release = self.root / 'release-delete'
+        events = self.root / 'events'
+        executable.write_text(f'''#!/usr/bin/python3
+import os
+from pathlib import Path
+import sys
+import time
+assert os.environ['GDDY_PAT_PROD'] == 'gd_pat_working'
+assert sys.argv[3] == 'example.com'
+assert sys.argv[sys.argv.index('--name') + 1] == 'api'
+with Path({str(events)!r}).open('a') as stream:
+    stream.write(sys.argv[2] + '\\n')
+if sys.argv[2] == 'delete':
+    deadline = time.monotonic() + 5
+    while not Path({str(release)!r}).exists():
+        if time.monotonic() > deadline:
+            raise SystemExit(1)
+        time.sleep(0.01)
 ''')
         executable.chmod(0o700)
+        children = []
+        original = subprocess.Popen
+        def launch(*args, **kwargs):
+            child = original(*args, **kwargs)
+            children.append(child)
+            return child
+        # No valid JSON is emitted, and delete cannot finish until after replace returns.
         with patch.object(DBMDynIP, 'GODADDY_CLI', str(executable)), \
-                patch.dict(os.environ, {'GDDY_PAT_PROD': 'gd_pat_working'}):
+                patch.dict(os.environ, {'GDDY_PAT_PROD': 'gd_pat_working'}), \
+                patch('subprocess.Popen', side_effect=launch):
             GoDaddyCli().replace(DnsRecord('example.com', 'api', IP))
-
-    def test_error_redacts_token(self):
-        with patch("subprocess.run", return_value=Mock(returncode=1, stderr="failed gd_pat_test_only")):
-            with self.assertRaises(ValueError) as caught:
-                GoDaddyCli().replace(DnsRecord("example.com", "api", IP))
-        self.assertNotIn("gd_pat_test_only", str(caught.exception))
-
-    def test_invalid_success_result_is_rejected(self):
-        for output in ("not json", '{"data":{"failed":0}}', '{"data":{"failed":false,"deleted":0}}'):
-            with self.subTest(output=output), patch("subprocess.run", return_value=Mock(returncode=0, stdout=output)):
-                with self.assertRaises(ValueError):
-                    GoDaddyCli().replace(DnsRecord("example.com", "api", IP))
+        self.assertIsNone(children[0].poll())
+        release.touch()
+        self.assertEqual(children[0].wait(timeout=6), 0)
+        self.assertEqual(events.read_text().splitlines(), ['delete', 'add'])
 
     def test_cli_uses_database_records_and_failure_exit(self):
         (self.root / "data").mkdir()
@@ -255,7 +248,7 @@ esac
              patch.object(Credentials, "load", side_effect=AssertionError("Runtime must use gddy authentication")), \
              patch("sys.argv", ["bmdynip"]), patch("sys.stdout", new=io.StringIO()), \
              patch("sys.stderr", new=io.StringIO()):
-            with patch("subprocess.run", side_effect=outputs):
+            with patch("subprocess.run", side_effect=outputs), patch("subprocess.Popen"):
                 self.assertEqual(main(), 0)
             saved = (self.root / "data/state.json").read_bytes()
             with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("curl", 25)):
