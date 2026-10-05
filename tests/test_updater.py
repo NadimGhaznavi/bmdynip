@@ -125,7 +125,7 @@ class FlowTests(TemporaryFiles):
 
     def test_authentication_failure_is_visible_without_exposing_pat(self):
         token = 'gd_pat_test"quoted\\only'
-        self.activity.dns = GoDaddyCli(token)
+        self.activity.dns = GoDaddyCli()
         self.state.save(IPv4Address('1.1.1.1'), RECORDS)
         saved = self.state.path.read_bytes()
         failure = json.dumps({'error': {'code': 'ERROR', 'system': 'domain',
@@ -138,8 +138,6 @@ class FlowTests(TemporaryFiles):
         message = self.messages.snapshot()[-1]
         self.assertEqual(message['source'], 'bmdynip.activity.UpdatePublicIp')
         self.assertIn('HTTP 401 Unauthorized', message['message'])
-        self.assertIn("root's $HOME/.godaddy-cli", message['message'])
-        self.assertIn('scripts/upgrade.sh', message['message'])
         self.assertIn('[redacted]', message['message'])
         self.assertNotIn(token, message['message'])
         self.assertNotIn('"code"', message['message'])
@@ -191,16 +189,15 @@ class BoundaryTests(TemporaryFiles):
         with self.assertRaises(ValueError):
             Credentials.load(path)
 
-    def test_godaddy_delete_add_contract_and_token_environment(self):
+    def test_godaddy_delete_add_uses_inherited_authentication(self):
         results = [Mock(returncode=0, stdout=json.dumps({"data": {"failed": 0, "deleted": 0}})),
                    Mock(returncode=0, stdout=json.dumps({"data": {"failed": 0, "created": 1}}))]
         with patch.dict(os.environ, {"GDDY_PAT_PROD": "gd_pat_other"}), \
              patch("subprocess.run", side_effect=results) as run:
-            GoDaddyCli("gd_pat_test_only").replace(DnsRecord("example.com", "api", IP))
+            GoDaddyCli().replace(DnsRecord("example.com", "api", IP))
         self.assertEqual([c.args[0][2] for c in run.call_args_list], ["delete", "add"])
         for call in run.call_args_list:
-            self.assertEqual(call.kwargs["env"]["GDDY_PAT"], "gd_pat_test_only")
-            self.assertNotIn("GDDY_PAT_PROD", call.kwargs["env"])
+            self.assertNotIn("env", call.kwargs)
             self.assertEqual(call.args[0][call.args[0].index("--env") + 1], "prod")
             self.assertNotIn("gd_pat_test_only", " ".join(call.args[0]))
             self.assertEqual(call.kwargs["stdin"], subprocess.DEVNULL)
@@ -209,24 +206,42 @@ class BoundaryTests(TemporaryFiles):
     def test_reported_partial_failure_stops_before_add(self):
         with patch("subprocess.run", return_value=Mock(returncode=0, stdout='{"data":{"failed":1,"deleted":0}}')) as run:
             with self.assertRaises(ValueError):
-                GoDaddyCli("gd_pat_test_only").replace(DnsRecord("example.com", "api", IP))
+                GoDaddyCli().replace(DnsRecord("example.com", "api", IP))
             self.assertEqual(run.call_count, 1)
+
+    def test_direct_subprocess_preserves_gddy_authentication_environment(self):
+        executable = self.root / 'gddy'
+        executable.write_text('''#!/bin/sh
+if [ "$GDDY_PAT_PROD" != "gd_pat_working" ]; then
+  echo 'Configured gddy authentication was overridden' >&2
+  exit 2
+fi
+case "$2" in
+  delete) echo '{"data":{"failed":0,"deleted":1}}' ;;
+  add) echo '{"data":{"failed":0,"created":1}}' ;;
+  *) exit 2 ;;
+esac
+''')
+        executable.chmod(0o700)
+        with patch.object(DBMDynIP, 'GODADDY_CLI', str(executable)), \
+                patch.dict(os.environ, {'GDDY_PAT_PROD': 'gd_pat_working'}):
+            GoDaddyCli().replace(DnsRecord('example.com', 'api', IP))
 
     def test_error_redacts_token(self):
         with patch("subprocess.run", return_value=Mock(returncode=1, stderr="failed gd_pat_test_only")):
             with self.assertRaises(ValueError) as caught:
-                GoDaddyCli("gd_pat_test_only").replace(DnsRecord("example.com", "api", IP))
+                GoDaddyCli().replace(DnsRecord("example.com", "api", IP))
         self.assertNotIn("gd_pat_test_only", str(caught.exception))
 
     def test_invalid_success_result_is_rejected(self):
         for output in ("not json", '{"data":{"failed":0}}', '{"data":{"failed":false,"deleted":0}}'):
             with self.subTest(output=output), patch("subprocess.run", return_value=Mock(returncode=0, stdout=output)):
                 with self.assertRaises(ValueError):
-                    GoDaddyCli("gd_pat_test_only").replace(DnsRecord("example.com", "api", IP))
+                    GoDaddyCli().replace(DnsRecord("example.com", "api", IP))
 
     def test_cli_uses_database_records_and_failure_exit(self):
         (self.root / "data").mkdir()
-        credential = self.credentials()
+        credential = self.root / "missing-auto.env"
         outputs = [Mock(stdout="8.8.8.8"), Mock(stdout="8.8.8.8"),
                    Mock(returncode=0, stdout='{"data":{"failed":0,"deleted":1}}'),
                    Mock(returncode=0, stdout='{"data":{"failed":0,"created":1}}')]
@@ -237,7 +252,7 @@ class BoundaryTests(TemporaryFiles):
              patch("bmdynip.app.main.DiscoveryCoordinator.run", return_value=7), \
              patch("bmdynip.app.main.DnsRecordDb.list_records", return_value=RECORDS), \
              patch("bmdynip.app.main.PublicIpDb"), \
-             patch.object(Credentials, "godaddy", side_effect=AssertionError("Runtime must use /etc credentials")), \
+             patch.object(Credentials, "load", side_effect=AssertionError("Runtime must use gddy authentication")), \
              patch("sys.argv", ["bmdynip"]), patch("sys.stdout", new=io.StringIO()), \
              patch("sys.stderr", new=io.StringIO()):
             with patch("subprocess.run", side_effect=outputs):
@@ -330,7 +345,7 @@ class InstallationTests(TemporaryFiles):
                 source.chmod(0o600)
                 destination = self.root / "etc/bmdynip/auto.env"
                 with patch.dict(os.environ, {}, clear=True), patch("getpass.getpass") as prompt:
-                    Credentials.provision(destination, installer.read_token)
+                    Credentials.provision(destination, Credentials.godaddy)
                 prompt.assert_not_called()
                 self.assertEqual(Credentials.load(destination), token)
                 self.assertEqual(source.read_text(), content)
@@ -342,71 +357,66 @@ class InstallationTests(TemporaryFiles):
         source.chmod(0o644)
         with patch.dict(os.environ, {}, clear=True), patch("getpass.getpass") as prompt:
             with self.assertRaisesRegex(ValueError, "0600"):
-                installer.read_token()
+                Credentials.godaddy()
             source.chmod(0o600)
             source.write_text("GDDY_PAT=$(whoami)\n")
             with self.assertRaises(ValueError):
-                installer.read_token()
+                Credentials.godaddy()
             prompt.assert_not_called()
 
-    def test_install_refreshes_credentials_and_uninstall_retains_them(self):
+    def test_install_and_upgrade_preserve_legacy_credentials_without_reading_them(self):
         install_root = self.root / "prod"
-        credential = self.root / "etc/bmdynip/auto.env"
+        credential = self.credentials()
+        original = credential.read_bytes()
         with patch.object(DBMDynIP, "INSTALL_DIR", str(install_root)), \
              patch.object(DBMDynIP, "CRON_FILE", str(self.root / "cron")), \
              patch.object(DBMDynIP, "CREDENTIALS_FILE", str(credential)), \
              patch.object(DBMDynIP, "GODADDY_CLI", "/usr/bin/true"), \
-             patch.object(installer, "read_token", side_effect=["gd_pat_test_only", "gd_pat_rotated"]) as source, \
+             patch.object(Credentials, "provision", side_effect=AssertionError("Use gddy authentication")), \
              patch("sys.stdout", new=io.StringIO()):
             installer.install()
-            self.assertEqual(Credentials.load(credential), "gd_pat_test_only")
-            self.assertEqual(credential.parent.stat().st_mode & 0o777, 0o700)
+            installer.install(upgrading=True)
+            self.assertEqual(credential.read_bytes(), original)
             self.assertEqual(credential.stat().st_mode & 0o777, 0o600)
-            self.assertEqual(credential.stat().st_uid, os.geteuid())
             executable = install_root / "bin/bmdynip"
             with zipfile.ZipFile(executable) as archive:
-                self.assertIn("bmdynip/interface/Credentials.py", archive.namelist())
                 self.assertFalse(any(name.endswith("auto.env") for name in archive.namelist()))
-            installer.install()
-            self.assertEqual(Credentials.load(credential), "gd_pat_rotated")
             installer.uninstall()
-            self.assertEqual(source.call_count, 2)
-            self.assertEqual(Credentials.load(credential), "gd_pat_rotated")
+            self.assertEqual(credential.read_bytes(), original)
 
-    def test_invalid_token_stops_install_without_publishing_credentials_or_cron(self):
+    def test_install_does_not_require_a_separate_pat_file(self):
         credential = self.root / "etc/bmdynip/auto.env"
+        (self.root / ".godaddy-cli").unlink()
         with patch.object(DBMDynIP, "INSTALL_DIR", str(self.root / "prod")), \
              patch.object(DBMDynIP, "CRON_FILE", str(self.root / "cron")), \
              patch.object(DBMDynIP, "CREDENTIALS_FILE", str(credential)), \
              patch.object(DBMDynIP, "GODADDY_CLI", "/usr/bin/true"), \
-             patch.object(installer, "read_token", return_value="secret-invalid"):
-            with self.assertRaises(ValueError) as caught:
-                installer.install()
-            self.assertNotIn("secret-invalid", str(caught.exception))
+             patch.object(Credentials, "godaddy", side_effect=AssertionError("Use gddy authentication")), \
+             patch("sys.stdout", new=io.StringIO()):
+            installer.install()
         self.assertFalse(credential.exists())
-        self.assertFalse((self.root / "cron").exists())
-        self.assertEqual(list(credential.parent.iterdir()), [])
+        self.assertTrue((self.root / "cron").exists())
 
     def test_missing_home_source_is_rejected_even_with_environment_token(self):
         (self.root / ".godaddy-cli").unlink()
         with patch.dict(os.environ, {}, clear=True), \
              patch("sys.stdin.isatty", return_value=False):
             with self.assertRaises(FileNotFoundError):
-                installer.read_token()
+                Credentials.godaddy()
         with patch.dict(os.environ, {"GDDY_PAT": "gd_pat_test_only"}), \
              patch("getpass.getpass") as prompt:
             with self.assertRaises(FileNotFoundError):
-                installer.read_token()
+                Credentials.godaddy()
             prompt.assert_not_called()
 
     def test_source_rotation_refreshes_installed_copy_without_executing_shell(self):
         source = self.root / ".godaddy-cli"
         destination = self.root / "etc/bmdynip/auto.env"
-        Credentials.provision(destination, installer.read_token, refresh=True)
+        Credentials.provision(destination, Credentials.godaddy, refresh=True)
         token = "gd_pat_rotated;opaque$()_only"
         source.write_text(token + "\n")
         with patch.dict(os.environ, {"GDDY_PAT": "gd_pat_stale_environment"}):
-            Credentials.provision(destination, installer.read_token, refresh=True)
+            Credentials.provision(destination, Credentials.godaddy, refresh=True)
         self.assertEqual(Credentials.load(destination), token)
         self.assertEqual(source.read_text(), token + "\n")
         self.assertEqual(destination.stat().st_mode & 0o777, 0o600)
@@ -414,18 +424,18 @@ class InstallationTests(TemporaryFiles):
 
     def test_failed_refresh_preserves_installed_copy(self):
         destination = self.root / "etc/bmdynip/auto.env"
-        Credentials.provision(destination, installer.read_token, refresh=True)
+        Credentials.provision(destination, Credentials.godaddy, refresh=True)
         original = destination.read_bytes()
         source = self.root / ".godaddy-cli"
         source.write_text("invalid-source-secret\n")
         with self.assertRaises(ValueError) as caught:
-            Credentials.provision(destination, installer.read_token, refresh=True)
+            Credentials.provision(destination, Credentials.godaddy, refresh=True)
         self.assertNotIn("invalid-source-secret", str(caught.exception))
         self.assertEqual(destination.read_bytes(), original)
         source.write_text("gd_pat_rotated\n")
         with patch("bmdynip.interface.Credentials.os.replace", side_effect=OSError("publish failed")):
             with self.assertRaises(OSError):
-                Credentials.provision(destination, installer.read_token, refresh=True)
+                Credentials.provision(destination, Credentials.godaddy, refresh=True)
         self.assertEqual(destination.read_bytes(), original)
         self.assertEqual(list(destination.parent.iterdir()), [destination])
 
