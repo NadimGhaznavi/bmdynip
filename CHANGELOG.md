@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Connect the Web UI to persistent hostname management, live system status,
+  and database-backed DNS change history, with automatic status refresh.
 - Provision the local MariaDB database and account, save protected database
   credentials, and apply the schema during installation and upgrades.
 - Retain existing database credentials and records when reapplying the schema.

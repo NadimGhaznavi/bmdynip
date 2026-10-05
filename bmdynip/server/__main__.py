@@ -29,7 +29,6 @@ ASSETS = {
     "/static/style.css": (SERVER_DIR / "static/style.css", "text/css; charset=utf-8"),
     "/static/ui.js": (SERVER_DIR / "static/ui.js", "text/javascript; charset=utf-8"),
     "/static/api.js": (SERVER_DIR / "static/api.js", "text/javascript; charset=utf-8"),
-    "/static/demo.js": (SERVER_DIR / "static/demo.js", "text/javascript; charset=utf-8"),
     "/static/schedule.js": (SERVER_DIR / "static/schedule.js", "text/javascript; charset=utf-8"),
     "/pages/images/bmdynip-logo.png": (
         LOGO, "image/png"),

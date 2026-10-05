@@ -16,7 +16,7 @@ BM stands for [Bear & Moose](https://osoyalce.com).
 
 ## User Guides
 
-- [Web interface preview]({{ site.baseurl }}{% link pages/web-interface.md %})
+- [Web interface]({{ site.baseurl }}{% link pages/web-interface.md %})
 - [Root GoDaddy authentication]({% link pages/root-authentication.md %})
 - [Installation]({% link pages/installation.md %})
 - [Configuration]({% link pages/configuration.md %})

@@ -475,7 +475,7 @@ class InstallationTests(TemporaryFiles):
                         self.fail("Installed Web UI failed to start.")
                     time.sleep(0.05)
             self.assertIn(DBMDynIP.VERSION.encode(), body)
-            for path in ("/static/ui.js", "/static/demo.js", "/static/style.css",
+            for path in ("/static/ui.js", "/static/api.js", "/static/style.css",
                          "/pages/images/bmdynip-logo.png"):
                 with opener.open(f"http://127.0.0.1:{port}{path}", timeout=2) as response:
                     self.assertEqual(response.status, 200)

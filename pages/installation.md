@@ -67,7 +67,7 @@ The installer creates:
 Installation enables cron immediately. It does not run a DNS update itself.
 Existing custom or disabled schedules are retained. Change the schedule in the
 [Web UI]({{ site.baseurl }}{% link pages/web-interface.md %}#runner-schedule).
-It starts the [Web UI preview]({{ site.baseurl }}{% link pages/web-interface.md %})
+It starts the [Web UI]({{ site.baseurl }}{% link pages/web-interface.md %})
 on port `49700` and prints its status after checking HTTP readiness.
 The supplied hostname list is empty, so the job makes no DNS changes until
 you populate it. Follow the [configuration guide]({{ site.baseurl }}{% link pages/configuration.md %}),
