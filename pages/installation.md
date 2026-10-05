@@ -9,7 +9,7 @@ layout: single
 [Installation]({{ site.baseurl }}{% link pages/installation.md %}) · [Configuration]({{ site.baseurl }}{% link pages/configuration.md %}) · [Running and monitoring]({{ site.baseurl }}{% link pages/running.md %})
 
 BMDynIP updates the configured hostnames to this host's public IPv4 address.
-It runs as root every five minutes from `/etc/cron.d/bmdynip`.
+It runs as root from `/etc/cron.d/bmdynip`, every five minutes by default.
 
 Run the installation commands below as root on
 the production host. Run repository commands from your BMDynIP checkout.
@@ -52,6 +52,8 @@ The installer creates:
 | `/etc/cron.d/bmdynip` | Root cron job using `DBMDynIP.CRON_SCHEDULE` |
 
 Installation enables cron immediately. It does not run a DNS update itself.
+Existing custom or disabled schedules are retained. Change the schedule in the
+[Web UI]({{ site.baseurl }}{% link pages/web-interface.md %}#runner-schedule).
 It starts the [Web UI preview]({{ site.baseurl }}{% link pages/web-interface.md %})
 on port `49700` and prints its status after checking HTTP readiness.
 The supplied hostname list is empty, so the job makes no DNS changes until

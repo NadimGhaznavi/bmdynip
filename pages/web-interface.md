@@ -38,8 +38,17 @@ The interface has no authentication. It displays sample system status and A
 records for `osoyalce.com`. Add accepts a single hostname label, such as
 `wintermute`; nested names and the apex are excluded. Delete asks for confirmation.
 
-Changes affect only the current browser page and reset on reload. The preview
-does not call GoDaddy, save configuration, or run the IP update worker.
-The cron updater runs independently of the Web UI service.
+Hostname preview changes affect only the current browser page and reset on reload.
+
+## Runner schedule
+
+The **Runner Schedule** panel controls the installed root cron job. Select
+**Enabled**, enter a five-field cron expression, and click **Update**. The default,
+`*/5 * * * *`, runs every five minutes in the server's local timezone.
+Clear **Enabled** and click **Update** to stop future scheduled runs. An update
+already in progress finishes normally. Manual runs remain available.
+
+Schedule changes persist across reloads and upgrades. The Web UI service must
+run as root to save them. The cron updater runs independently of the Web UI service.
 
 Stop a development preview with Ctrl+C.

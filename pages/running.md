@@ -19,6 +19,10 @@ Check the installed version and cron entry:
 cat /etc/cron.d/bmdynip
 ```
 
+Use the [Web UI runner schedule]({{ site.baseurl }}{% link pages/web-interface.md %}#runner-schedule)
+to enable or disable scheduled runs and change the cron expression. The default
+is `*/5 * * * *` (every five minutes).
+
 To run immediately as root:
 
 ```sh
@@ -43,4 +47,3 @@ journalctl -t bmdynip
 The saved state is a cache, not a continuous DNS audit. If someone manually
 changes a managed A record, remove `/opt/prod/bmdynip/data/state.json` to force
 the next update.
-

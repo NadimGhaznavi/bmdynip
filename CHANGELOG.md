@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose the runner cron schedule in the Web UI with an enabled checkbox,
+  cron expression, and Update button; default to every five minutes.
+
+### Fixed
+
+- Preserve custom and disabled runner schedules during installation and upgrades.
+
 ## [1.2.2] - 2026-10-04 @ 20:18
 
 ### Fixed

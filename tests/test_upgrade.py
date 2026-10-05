@@ -4,13 +4,17 @@ from contextlib import ExitStack
 import importlib.util
 import io
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 import unittest
 from unittest.mock import call, patch
 import zipfile
+import crontab
+import pymysql
 
 from bmdynip.constants.DBMDynIP import DBMDynIP
+from bmdynip.interface.RunnerSchedule import RunnerSchedule
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -86,14 +90,15 @@ class UpgradeDeploymentTests(unittest.TestCase):
         self.opener = self.stack.enter_context(patch.object(installer, "build_opener")).return_value
         self.opener.open.return_value.__enter__.return_value.status = 200
         self.stack.enter_context(patch("sys.stdout", new=io.StringIO()))
+        self.stack.enter_context(patch.object(RunnerSchedule, "_require_root"))
         self.dependencies = self.stack.enter_context(
             patch.object(installer, "install_dependencies", side_effect=self.stage_dependency))
 
     @staticmethod
     def stage_dependency(target):
-        package = target / "pymysql"
-        package.mkdir()
-        (package / "__init__.py").write_text('"""Dependency fixture."""\n')
+        shutil.copytree(Path(pymysql.__file__).parent, target / "pymysql",
+                        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+        shutil.copyfile(crontab.__file__, target / "crontab.py")
 
     def test_stop_deploy_start_preserves_files_and_permissions(self):
         root = Path(DBMDynIP.INSTALL_DIR)
@@ -134,12 +139,23 @@ class UpgradeDeploymentTests(unittest.TestCase):
             with zipfile.ZipFile(archive) as bundle:
                 self.assertIn("bmdynip/app/main.py", bundle.namelist())
                 self.assertIn("pymysql/__init__.py", bundle.namelist())
+                self.assertIn("crontab.py", bundle.namelist())
                 self.assertIn("bmdynip/server/static/bmdynip-logo.png", bundle.namelist())
+            result = subprocess.run([str(archive), "--help"], text=True, capture_output=True, timeout=10)
+            self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(config.stat().st_mode & 0o777, 0o600)
         self.assertEqual(credentials.stat().st_mode & 0o777, 0o600)
         cron = Path(DBMDynIP.CRON_FILE)
         self.assertEqual(cron.stat().st_mode & 0o777, 0o644)
         self.assertIn(f"{DBMDynIP.CRON_SCHEDULE} root {root}/bin/bmdynip", cron.read_text())
+
+    def test_upgrade_preserves_custom_disabled_runner_schedule(self):
+        with patch.object(installer.Credentials, "provision"):
+            installer.install()
+            schedule = RunnerSchedule()
+            values = schedule.update(False, "30 4 * * 1-5")
+            installer.upgrade()
+        self.assertEqual(schedule.read(), values)
 
     def test_stop_failure_prevents_deployment(self):
         self.control.side_effect = subprocess.CalledProcessError(1, "systemctl stop")

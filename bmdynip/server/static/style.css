@@ -68,6 +68,9 @@ th, td { padding: .8rem; border-bottom: 1px solid var(--border); vertical-align:
 th { background: var(--surface); color: var(--muted); font-weight: 600; white-space: nowrap; }
 tr:last-child td { border-bottom: 0; }
 .hostnames-table { min-width: 42rem; }
+.schedule-table { min-width: 34rem; }
+#schedule-form { display: block; }
+#schedule-enabled { width: auto; min-height: 1.25rem; }
 .hostnames-table td:first-child { overflow-wrap: anywhere; }
 .actions { text-align: right; }
 .actions button { padding: .4rem .75rem; min-height: 2.25rem; }
