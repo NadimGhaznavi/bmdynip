@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-10-04 @ 23:12
+
+### Fixed
+
+- Show the sanitized DNS failure reason in status messages, including GoDaddy
+  authentication rejection and instructions to refresh the configured PAT.
+
 ## [1.6.0] - 2026-10-04 @ 23:05
 
 ### Added

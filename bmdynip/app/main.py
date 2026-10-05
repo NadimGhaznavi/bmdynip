@@ -60,7 +60,7 @@ def main() -> int:
         print("BMDynIP: Database operation failed; check database availability and credentials.", file=sys.stderr)
         return 1
     except (OSError, ValueError, subprocess.SubprocessError) as error:
-        messages.append('Runner failed. Check the service log; the next run will retry.')
+        messages.append(f'Runner failed: {error}. The next run will retry.')
         print(f"BMDynIP: {error}", file=sys.stderr)
         return 1
     return 0

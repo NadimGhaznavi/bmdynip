@@ -115,6 +115,9 @@ class LiveRunnerTests(LiveControlFixture):
         self.assertEqual(self.state.path.read_bytes(), saved)
         self.assertEqual(failed['lastAppliedOn'], applied)
         self.assertIn('test provider failure', failed['lastError'])
+        self.assertTrue(any('DNS update failed' in entry['message'] and
+                            'test provider failure' in entry['message'] for entry in failed['messages']))
+        self.assertIn('test provider failure', failed['messages'][0]['message'])
         self.assertTrue(all(row['address'] == '8.8.8.8' and row['status'] == 'Pending'
                             for row in failed['records']))
         db = self.open_database()
@@ -146,6 +149,7 @@ class LiveRunnerTests(LiveControlFixture):
         snapshot = self.request()[1]
         self.assertEqual(self.dns_history(snapshot), history)
         self.assertIn('Runner failed', snapshot['messages'][0]['message'])
+        self.assertIn('Public IP services disagree', snapshot['messages'][0]['message'])
         self.network.side_effect = ValueError('Invalid route')
         self.assertEqual(runner.main(), 1)
         self.assertEqual(self.dns.call_count, 1)

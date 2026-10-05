@@ -43,7 +43,7 @@ class UpdatePublicIp:
                 if self.audit:
                     self.audit.failed(request, str(error))
                 if self.messages:
-                    self.messages.append(f'DNS update failed for {hostname}. Check the service log; '
+                    self.messages.append(f'DNS update failed for {hostname}: {error}. '
                                          'saved state is preserved for retry.')
                 raise
             if self.audit:
