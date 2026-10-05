@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-10-04 @ 22:41
+
+### Added
+
+- Start the runner immediately after adding a hostname in the Web UI, with
+  clear feedback if the name is saved but the runner cannot launch.
+
 ## [1.4.1] - 2026-10-04 @ 22:16
 
 ### Fixed

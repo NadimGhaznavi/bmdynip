@@ -4,11 +4,12 @@ from typing import Final
 
 
 class DBMDynIP:
-    VERSION: Final[str] = "1.4.1"
+    VERSION: Final[str] = "1.5.0"
     WEB_HOST: Final[str] = "0.0.0.0"
     WEB_PORT: Final[int] = 49700
     WEB_REQUEST_TIMEOUT: Final[int] = 15
     WEB_READY_PATH: Final[str] = "/ready"
+    WEB_RUNNER_TIMEOUT: Final[int] = 600
     WEB_SERVICE_FILE: Final[str] = "/etc/systemd/system/bmdynip-web.service"
     SYSTEMCTL: Final[str] = "/usr/bin/systemctl"
     INSTALL_DIR: Final[str] = "/opt/prod/bmdynip"
