@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add the "Rebuild Jekyll Site" GitHub Actions workflow for manual site rebuilds
+  and automatic deployment on pushes to `main`.
+
 ## [2.0.1] - 2026-10-05 @ 18:48
 
 - Add CMDB scanner metadata: subtype `Dynamic DNS Service`, supplier `Nadim-Daniel`,
