@@ -22,3 +22,4 @@ BM stands for [Bear & Moose](https://osoyalce.com).
 - [Configuration]({{ site.baseurl }}{% link pages/configuration.md %})
 - [Running and monitoring]({{ site.baseurl }}{% link pages/running.md %})
 - [Uninstall]({{ site.baseurl }}{% link pages/uninstall.md %})
+

@@ -20,6 +20,12 @@ minimal_mistakes_skin: "dark"
 #minimal_mistakes_skin: "air"
 
 # Site Settings
+mycount:
+  endpoint: "https://count.osoyalce.com/count"
+  site: "bmdynip"
+
+
+# Site Settings
 locale: "en-US"
 rtl: # true, false (default) # turns direction of the page into right to left for RTL languages
 title: "BMDynIP"
