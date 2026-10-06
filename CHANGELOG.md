@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-10-06 @ 04:44
+
 ### Added
 
 - Add the "Rebuild Jekyll Site" GitHub Actions workflow for manual site rebuilds
