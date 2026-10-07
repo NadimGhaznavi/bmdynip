@@ -125,8 +125,3 @@ CREATE TABLE IF NOT EXISTS DnsRecord (
     address VARCHAR(45) NULL,
     UNIQUE KEY DnsRecord_domain_name_uq (domain, name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Installation migrations are application metadata, independent of CWM.
-CREATE TABLE IF NOT EXISTS ApplicationMigration (
-    name VARCHAR(63) CHARACTER SET ascii COLLATE ascii_bin NOT NULL PRIMARY KEY
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -33,3 +33,15 @@ Keep tokens out of command arguments, cron entries, service logs, and the reposi
 
 BMDynIP does not read `$HOME/.godaddy-cli` or `/etc/bmdynip/auto.env`. Existing
 copies are preserved during installation, upgrades, and uninstallation.
+
+## Issues and Workarounds
+
+I run the BMDynIP on a headless server. In order to setup GodDaddy authentication, I had to 
+
+- Run the `gddy auth` command on the headless server.
+- Cut-and-paste the URL to my workstation where I have a browser installed.
+- On my workstation, authenticate over the web to GoDaddy.
+- Capture the *failed to connect* URL on my workstation.
+- Cut-and-paste the *failed to connect* URL to the server so the `gddy auth` command gets the reply.
+
+That allowed my headless server to authenticate sucessfully.

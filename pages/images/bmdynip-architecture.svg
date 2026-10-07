@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc">
+<title id="title">BMDynIP system architecture</title><desc id="desc">Local workstation and Linux server behind a router. Cron and the Web UI start the updater. MariaDB stores hostnames, status and history. External IP checks and GoDaddy DNS are reached through the router.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10" fill="#58708d"/></marker></defs>
+<rect width="1440" height="900" fill="#f8fafc"/>
+<text x="40" y="48" font-family="DejaVu Sans, sans-serif" font-size="29" font-weight="700" fill="#0f172a" text-anchor="start">BMDynIP</text>
+<text x="40" y="78" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="400" fill="#64748b" text-anchor="start">Deployment and DNS update flow</text>
+<rect x="24" y="112" width="1110" height="718" rx="22" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5"/>
+<text x="48" y="145" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" fill="#2563eb" text-anchor="start">LOCAL NETWORK</text>
+<rect x="300" y="165" width="580" height="632" rx="20" fill="#ffffff" stroke="#93c5fd" stroke-width="1.5"/>
+<text x="325" y="200" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700" fill="#1d4ed8" text-anchor="start">LINUX SERVER</text>
+<rect x="1154" y="112" width="262" height="718" rx="22" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="1178" y="145" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700" fill="#475569" text-anchor="start">INTERNET</text>
+<rect x="48" y="247" width="208" height="105" rx="16" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="152.0" y="278" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="600" fill="#0f172a" text-anchor="middle">Workstation</text>
+<text x="152.0" y="304" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" fill="#334155" text-anchor="middle">Browser</text>
+<text x="152.0" y="326" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" fill="#334155" text-anchor="middle">http://server:49700</text>
+<rect x="340" y="247" width="215" height="105" rx="16" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+<text x="447.5" y="278" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="600" fill="#0f172a" text-anchor="middle">Web UI</text>
+<text x="447.5" y="304" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" fill="#334155" text-anchor="middle">bmdynip-web.service</text>
+<text x="447.5" y="326" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" fill="#334155" text-anchor="middle">Hostnames · status · schedule</text>
+<rect x="620" y="247" width="215" height="105" rx="16" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+<text x="727.5" y="278" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="600" fill="#0f172a" text-anchor="middle">Cron</text>
+<text x="727.5" y="304" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" fill="#334155" text-anchor="middle">Root cron job</text>
+<text x="727.5" y="326" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" fill="#334155" text-anchor="middle">Every five minutes by default</text>
+<rect x="340" y="475" width="215" height="115" rx="16" fill="#f0fdf4" stroke="#86efac" stroke-width="1.5"/>
+<text x="447.5" y="506" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="600" fill="#0f172a" text-anchor="middle">MariaDB</text>
+<text x="447.5" y="532" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" fill="#334155" text-anchor="middle">Managed hostnames</text>
+<text x="447.5" y="554" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" fill="#334155" text-anchor="middle">Live status · DNS history</text>
+<rect x="620" y="475" width="215" height="115" rx="16" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+<text x="727.5" y="506" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="600" fill="#0f172a" text-anchor="middle">DNS updater</text>
+<text x="727.5" y="532" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" fill="#334155" text-anchor="middle">Public IP discovery</text>
+<text x="727.5" y="554" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" fill="#334155" text-anchor="middle">Change detection · submission</text>
+<rect x="620" y="672" width="215" height="100" rx="16" fill="#fffbeb" stroke="#fcd34d" stroke-width="1.5"/>
+<text x="727.5" y="703" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="600" fill="#0f172a" text-anchor="middle">GoDaddy CLI</text>
+<text x="727.5" y="729" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" fill="#334155" text-anchor="middle">gddy</text>
+<text x="727.5" y="751" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" fill="#334155" text-anchor="middle">Root authentication</text>
+<rect x="948" y="475" width="160" height="115" rx="16" fill="#e0f2fe" stroke="#7dd3fc" stroke-width="1.5"/>
+<text x="1028.0" y="506" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="600" fill="#0f172a" text-anchor="middle">Router</text>
+<text x="1028.0" y="532" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" fill="#334155" text-anchor="middle">Public IPv4</text>
+<text x="1028.0" y="554" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" fill="#334155" text-anchor="middle">Internet gateway</text>
+<rect x="1180" y="247" width="208" height="105" rx="16" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="1284.0" y="278" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="600" fill="#0f172a" text-anchor="middle">Public IP checks</text>
+<text x="1284.0" y="304" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" fill="#334155" text-anchor="middle">ipify</text>
+<text x="1284.0" y="326" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" fill="#334155" text-anchor="middle">ifconfig.me</text>
+<rect x="1180" y="672" width="208" height="100" rx="16" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="1284.0" y="703" font-family="DejaVu Sans, sans-serif" font-size="19" font-weight="600" fill="#0f172a" text-anchor="middle">GoDaddy DNS</text>
+<text x="1284.0" y="729" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" fill="#334155" text-anchor="middle">Managed A records</text>
+<text x="1284.0" y="751" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" fill="#334155" text-anchor="middle">Delete, then add</text>
+<path d="M256 300H340" fill="none" stroke="#58708d" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="274.8" y="267" width="46.4" height="25" rx="4" fill="#f8fafc" stroke="#f8fafc" stroke-width="1.5"/>
+<text x="298" y="284" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" fill="#334155" text-anchor="middle">HTTP</text>
+<path d="M447 352V475" fill="none" stroke="#58708d" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="393.4" y="409" width="107.19999999999999" height="25" rx="4" fill="#f8fafc" stroke="#f8fafc" stroke-width="1.5"/>
+<text x="447" y="426" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" fill="#334155" text-anchor="middle">Read / write</text>
+<path d="M727 352V475" fill="none" stroke="#58708d" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="669.6" y="409" width="114.8" height="25" rx="4" fill="#f8fafc" stroke="#f8fafc" stroke-width="1.5"/>
+<text x="727" y="426" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" fill="#334155" text-anchor="middle">Scheduled run</text>
+<path d="M555 327L650 475" fill="none" stroke="#58708d" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="546.0" y="373" width="92.0" height="25" rx="4" fill="#f8fafc" stroke="#f8fafc" stroke-width="1.5"/>
+<text x="592" y="390" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" fill="#334155" text-anchor="middle">Run on add</text>
+<path d="M620 565H575V620H448V590" fill="none" stroke="#58708d" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="466.4" y="604" width="107.19999999999999" height="25" rx="4" fill="#f8fafc" stroke="#f8fafc" stroke-width="1.5"/>
+<text x="520" y="621" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" fill="#334155" text-anchor="middle">Read / write</text>
+<path d="M727 590V672" fill="none" stroke="#58708d" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="696.2" y="621" width="61.599999999999994" height="25" rx="4" fill="#f8fafc" stroke="#f8fafc" stroke-width="1.5"/>
+<text x="727" y="638" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" fill="#334155" text-anchor="middle">Launch</text>
+<path d="M835 505H948" fill="none" stroke="#58708d" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="848.8" y="472" width="84.39999999999999" height="25" rx="4" fill="#f8fafc" stroke="#f8fafc" stroke-width="1.5"/>
+<text x="891" y="489" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" fill="#334155" text-anchor="middle">IP checks</text>
+<path d="M835 722H911V562H948" fill="none" stroke="#58708d" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="860.2" y="691" width="99.6" height="25" rx="4" fill="#f8fafc" stroke="#f8fafc" stroke-width="1.5"/>
+<text x="910" y="708" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="400" fill="#334155" text-anchor="middle">DNS changes</text>
+<path d="M1108 505H1138V300H1180" fill="none" stroke="#58708d" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M1108 562H1138V722H1180" fill="none" stroke="#58708d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="48" y="869" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="400" fill="#64748b" text-anchor="start">Arrows show requests and launches. External requests pass through the router.</text>
+</svg>

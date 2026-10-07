@@ -81,24 +81,6 @@ def install_dependencies(target: Path) -> None:
         )
 
 
-def migrate_configuration(config: Path) -> None:
-    # The installer calls this with the staged dependencies on sys.path.
-    from pymysql import MySQLError
-    from bmdynip.app.database import open_database
-    from bmdynip.interface.DnsRecordDb import DnsRecordDb
-
-    records = Configuration.load(config)
-    try:
-        db = open_database()
-        try:
-            DnsRecordDb(db).import_configuration(records)
-        finally:
-            db.close()
-    except MySQLError:
-        raise ValueError('Could not migrate configured hostnames. Check database availability '
-                         'and credentials, then rerun installation or upgrade.') from None
-
-
 def install(*, upgrading: bool = False) -> None:
     for executable in ("/usr/bin/python3", "/usr/bin/curl", "/usr/bin/logger",
                        DBMDynIP.GODADDY_CLI, DBMDynIP.SYSTEMCTL, DBMDynIP.MARIADB, DBMDynIP.GETENT):
@@ -106,7 +88,7 @@ def install(*, upgrading: bool = False) -> None:
             raise ValueError(f"Required executable is missing: {executable}")
     root = Path(DBMDynIP.INSTALL_DIR)
     config = root / "conf" / "bmdynip.json"
-    Configuration.load(config if config.exists() else REPOSITORY / "conf" / "bmdynip.json")
+    Configuration.domain(config if config.exists() else REPOSITORY / "conf" / "bmdynip.json")
     DatabaseProvisioning(REPOSITORY / "schema/bmdynip-schema-v1.sql").provision()
     for name in ("bin", "conf", "data"):
         (root / name).mkdir(parents=True, exist_ok=True)
@@ -123,11 +105,6 @@ def install(*, upgrading: bool = False) -> None:
                             ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
             shutil.copyfile(REPOSITORY / "pages/images/bmdynip-logo.png",
                             staged / "bmdynip/server/static/bmdynip-logo.png")
-            sys.path.insert(0, str(staged))
-            try:
-                migrate_configuration(config)
-            finally:
-                sys.path.remove(str(staged))
             if upgrading:
                 systemctl("stop", Path(DBMDynIP.WEB_SERVICE_FILE).name)
             (staged / "__main__.py").write_text(

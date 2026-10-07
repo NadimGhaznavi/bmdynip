@@ -16,6 +16,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.2] - 2026-10-07 @ 02:46
+
+### Added
+
+- Architecture page with a nice diagram.
+
+### Changed
+
+- Complete website contents review and updates.
+
+### Removed
+
+- Remove automatic import of legacy JSON hostname lists during installation and
+  upgrades. Manage hostnames through the Web UI.
+
 ## [2.1.1] - 2026-10-06 @ 04:54
 
 - MyCount update.
