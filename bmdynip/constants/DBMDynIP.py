@@ -4,10 +4,10 @@ from typing import Final
 
 
 class DBMDynIP:
-    VERSION: Final[str] = "2.1.2"
+    VERSION: Final[str] = "2.1.3"
     CMDB_SUBTYPE: Final[str] = "Dynamic DNS Service"
     CMDB_SUPPLIER: Final[str] = "Nadim-Daniel"
-    CMDB_CODENAME: Final[str] = "monkey"
+    CMDB_CODENAME: Final[str] = "octopus"
     WEB_HOST: Final[str] = "0.0.0.0"
     WEB_PORT: Final[int] = 49700
     WEB_REQUEST_TIMEOUT: Final[int] = 15

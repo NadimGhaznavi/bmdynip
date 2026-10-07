@@ -13,7 +13,7 @@ DNS change history.
 
 ## System overview
 
-![BMDynIP architecture: a workstation browser connects to the server's Web UI; cron and the Web UI launch the updater; the Web UI and updater access MariaDB; the updater uses external IP checks and the GoDaddy CLI through the router.]({{ site.baseurl }}/pages/images/bmdynip-architecture.svg)
+![BMDynIP architecture: a workstation browser connects to the server's Web UI; cron and the Web UI launch the updater; the Web UI and updater access MariaDB; the updater uses external IP checks and the GoDaddy CLI through the router.]({{ site.baseurl }}/pages/images/bmdynip-architecture.png)
 
 The diagram shows a deployment with MariaDB on the BMDynIP server. External
 requests pass through the router using its public IPv4 address.
