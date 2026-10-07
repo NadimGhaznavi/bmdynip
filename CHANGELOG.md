@@ -16,7 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.1.5] - 2026-10-07 @ 03:51
+## [2.1.6] - 2026-10-07 @ 03:56
+
+- Added *front end matter* to the *DB Schema* and *Coding Guidelines* page.
 
 ## [2.1.4] - 2026-10-07 @ 03:40
 
