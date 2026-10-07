@@ -1,5 +1,7 @@
 ---
 title: Database schema
+author_profile: true
+layout: single
 ---
 
 [Documentation index]({{ site.baseurl }}{% link index.md %})

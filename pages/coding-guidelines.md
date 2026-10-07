@@ -1,5 +1,7 @@
 ---
 title: Coding Guidelines
+author_profile: true
+layout: single
 ---
 
 [Documentation index]({{ site.baseurl }}{% link index.md %})
