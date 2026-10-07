@@ -153,21 +153,29 @@ class FlowTests(TemporaryFiles):
 
 
 class BoundaryTests(TemporaryFiles):
-    def test_configuration_resolves_domain_and_names(self):
+    def test_configuration_reads_domain(self):
         path = self.root / "config.json"
-        path.write_text(json.dumps({"domain": "example.com", "hostnames": ["@", "home", "vpn"]}))
-        self.assertEqual(Configuration.load(path), tuple(DnsRecord("example.com", name) for name in ("@", "home", "vpn")))
+        path.write_text(json.dumps({"domain": "example.com"}))
+        self.assertEqual(Configuration.domain(path), "example.com")
+
+    def test_legacy_hostname_list_is_ignored(self):
+        path = self.root / "config.json"
+        for names in (["@", "home", "vpn"], "obsolete", ["bad name"]):
+            with self.subTest(names=names):
+                path.write_text(json.dumps({"domain": "example.com", "hostnames": names}))
+                self.assertEqual(Configuration.domain(path), "example.com")
 
     def test_bad_configuration_is_rejected(self):
         path = self.root / "config.json"
-        for data in ({}, {"domain": "example.com", "hostnames": "api"},
-                     {"domain": "--help", "hostnames": ["api"]},
-                     {"domain": "example.com", "hostnames": ["bad name"]},
-                     {"domain": "example.com", "hostnames": ["api", "api"]}):
+        for data in ({}, [], {"domain": "--help"}, {"domain": "localhost"},
+                     {"domain": "Example.com"}, {"domain": None},
+                     {"domain": "a" * 64 + ".com"},
+                     {"domain": ".".join(["a" * 63] * 4)},
+                     {"domain": "example.com", "unknown": []}):
             with self.subTest(data=data):
                 path.write_text(json.dumps(data))
                 with self.assertRaises(ValueError):
-                    Configuration.load(path)
+                    Configuration.domain(path)
 
     def test_credential_permissions_and_content(self):
         path = self.credentials()
@@ -288,9 +296,6 @@ class InstallationTests(TemporaryFiles):
         database = patch.object(installer.DatabaseProvisioning, "provision")
         database.start()
         self.addCleanup(database.stop)
-        migration = patch.object(installer, "migrate_configuration")
-        migration.start()
-        self.addCleanup(migration.stop)
 
     @staticmethod
     def stage_dependencies(target):
@@ -500,7 +505,7 @@ class InstallationTests(TemporaryFiles):
             self.assertEqual(cron.stat().st_mode & 0o777, 0o644)
             config = install_root / "conf/bmdynip.json"
             self.assertEqual(config.stat().st_mode & 0o777, 0o600)
-            self.assertEqual(Configuration.load(config), ())
+            self.assertEqual(Configuration.domain(config), "osoyalce.com")
             custom_config = '{"domain":"example.com","hostnames":["home","vpn"]}\n'
             config.write_text(custom_config)
             state = install_root / "data/state.json"

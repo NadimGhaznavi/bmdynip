@@ -6,87 +6,50 @@ layout: single
 
 [Documentation index]({{ site.baseurl }}{% link index.md %})
 
-[Installation]({{ site.baseurl }}{% link pages/installation.md %}) · [Configuration]({{ site.baseurl }}{% link pages/configuration.md %}) · [Running and monitoring]({{ site.baseurl }}{% link pages/running.md %})
+BMDynIP updates your managed DNS hostnames to your server's public IPv4 address. The DNS updater runs as a root cron job every five minutes by default. The web interface runs as a separate systemd service.
 
-BMDynIP updates the configured hostnames to this host's public IPv4 address.
-It runs as root from `/etc/cron.d/bmdynip`, every five minutes by default.
+## Prerequisites
 
-Run the installation commands below as root on
-the production host. Run repository commands from your BMDynIP checkout.
+Install BMDynIP on a Linux host with:
 
-## Install
+- systemd and a running cron daemon.
+- Python 3.10 or newer with virtual environment support.
+- `curl`, `getent`, and `logger`.
+- A running MariaDB server and the `mariadb` command-line client.
+- The GoDaddy CLI installed at `/opt/prod/godaddy-cli/gddy`.
 
-The host needs Linux with systemd, Python 3.10 or newer with venv support, curl, getent,
-logger, a running cron daemon, a running MariaDB server with the `mariadb` client,
-and `/opt/prod/godaddy-cli/gddy`.
-On Debian or Ubuntu, install `python3-venv`. Installation and upgrades require
-access to the Python package index to install `requirements.txt` into both
-executable archives. PyMySQL is bundled; no global Python package installation
-is needed.
+On Debian or Ubuntu, install `python3-venv` (`sudo apt install python3-venv`) if it is not already available.
 
-Configure `gddy` authentication as root and verify a DNS query as described in
-[root GoDaddy authentication]({{ site.baseurl }}{% link pages/root-authentication.md %}).
-BMDynIP invokes `gddy` directly using root's configured authentication and the
-inherited environment. It does not require or copy a separate PAT file.
+Installation and upgrades need access to the Python package index. The scripts bundle the dependencies from `requirements.txt` into the application executables. No global Python package installation is required.
 
-When `/etc/bmdynip/database.env` is missing, root must be able to connect to the
-local MariaDB server using Unix socket authentication. The installer creates
-the `bmdynip` database and local account, generates a password, applies the
-schema, and saves the credentials with mode `0600` in the mode `0700` directory.
-If the account already exists without its credentials file, its password is reset.
-Existing credentials are validated and retained; the configured account needs
-`SELECT`, `INSERT`, `UPDATE`, `DELETE`, `CREATE`, `ALTER`, `INDEX`, and `REFERENCES`
-privileges on its database. Database setup finishes before deployment stops the
-Web UI. Reinstallation and uninstallation preserve the database and credentials.
+### GoDaddy authentication
 
-From the checkout, as root:
+Configure the GoDaddy CLI as root and verify that it can query your DNS records. Follow the [root GoDaddy authentication guide]({{ site.baseurl }}{% link pages/root-authentication.md %}) before continuing.
+
+BMDynIP uses root's configured GoDaddy authentication and inherited environment. It does not require or copy a separate PAT file.
+
+### MariaDB access
+
+For a new installation, root must be able to connect to the local MariaDB server using Unix socket authentication.
+
+The installer automatically:
+
+- Creates the `bmdynip` database and a local database account.
+- Generates a password and applies the database schema.
+- Saves the credentials in `/etc/bmdynip/database.env`.
+
+The credentials file is readable only by root (`0600`), and its directory is accessible only to root (`0700`).
+
+If the database account already exists but the credentials file is missing, the installer resets the account's password. If the credentials file exists, the installer validates and retains it.
+
+An existing configured database account must have these privileges on its database:
+
+`SELECT`, `INSERT`, `UPDATE`, `DELETE`, `CREATE`, `ALTER`, `INDEX`, and `REFERENCES`.
+
+## Install BMDynIP
+
+Run the following command as root, from your BMDynIP checkout on the production host:
 
 ```sh
 ./scripts/install.sh
 ```
-
-The installer creates:
-
-| Location | Contents |
-| --- | --- |
-| `/opt/prod/bmdynip/bin/bmdynip` | Executable Python archive containing the application |
-| `/opt/prod/bmdynip/bin/bmdynip-web` | Web UI executable with bundled assets |
-| `/opt/prod/bmdynip/bmdynip/constants/DBMDynIP.py` | Readable version constants for CMDB application discovery |
-| `/etc/systemd/system/bmdynip-web.service` | Web UI service enabled at boot |
-| `/opt/prod/bmdynip/conf/bmdynip.json` | Domain and legacy hostname configuration |
-| `/opt/prod/bmdynip/data/` | Last successful update cache and process lock |
-| `/etc/bmdynip/database.env` | Root-owned MariaDB credentials, mode `0600` |
-| `/etc/cron.d/bmdynip` | Root cron job using `DBMDynIP.CRON_SCHEDULE` |
-| MariaDB `bmdynip` database | Managed DNS names, live status, migration markers, and CWM history |
-
-Register the application as `BMDynIP` in CMDB, preserving capitalization.
-Install and upgrade refresh the discovery file; uninstall removes it.
-Configuration and saved data remain accessible only to root.
-
-Installation enables cron immediately. It does not run a DNS update itself.
-Existing custom or disabled schedules are retained. Change the schedule in the
-[Web UI]({{ site.baseurl }}{% link pages/web-interface.md %}#runner-schedule).
-It starts the [Web UI]({{ site.baseurl }}{% link pages/web-interface.md %})
-on port `49700` and prints its status after checking database readiness at `/ready`.
-The supplied hostname list is empty, so the job makes no DNS changes until
-you add managed names. Follow the [configuration guide]({{ site.baseurl }}{% link pages/configuration.md %}),
-then see [running and monitoring]({{ site.baseurl }}{% link pages/running.md %}).
-
-## Upgrade
-
-After pulling a release, run the upgrade script as root:
-
-```sh
-git pull
-./scripts/upgrade.sh
-```
-
-This stops the Web UI, replaces the executables and cron job while preserving
-configuration, saved state, database credentials, and existing GoDaddy credential
-files, then starts the Web UI and prints
-its status and port after checking readiness. If deployment fails after the
-service stops, fix the reported error and rerun the upgrade.
-
-Existing JSON hostnames are imported into MariaDB once before deployment.
-The source file is preserved; later upgrades retain hostname changes made in
-the Web UI. A failed import rolls back and can be retried by rerunning the script.

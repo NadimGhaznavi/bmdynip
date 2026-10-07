@@ -45,7 +45,7 @@ unrelated application data.
 | `pages/` | Guides and documentation images |
 | `_config.yml` | Jekyll configuration |
 | `scripts/` | Maintenance and release tooling |
-| `conf/` | Default domain and hostname configuration |
+| `conf/` | Default domain configuration |
 | `bmdynip/app/` | Command entry point and application orchestration |
 | `bmdynip/constants/` | Project constants |
 | `bmdynip/interface/` | Configuration, credentials, public-IP discovery, DNS, and saved-state interfaces |
@@ -62,8 +62,8 @@ for a specific requirement.
 
 ## Configuration and external interfaces
 
-- `Configuration` MUST validate domain and hostname configuration at the boundary
-  and return DNS record entities to internal callers.
+- `Configuration` MUST validate domain configuration at the boundary
+  and return the validated domain to internal callers.
 - `Credentials` MUST own token loading and root ownership and permission checks.
   Tokens MUST NOT appear in logs or command arguments.
 - `PublicIpService` MUST validate public IPv4 responses and require agreement

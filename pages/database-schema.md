@@ -30,11 +30,6 @@ allows one value per attached tag. DNS records are application data in
 delete its change history. `DnsRecord.address` is nullable until an address has
 been successfully applied to that record.
 
-`ApplicationMigration` records completed installation migrations independently
-of CWM. The JSON hostname import saves its completion marker and DNS records in
-one transaction, so failed imports can be retried and later upgrades preserve
-Web UI deletions.
-
 `ModelElementChangeRequest` associates requests with affected model elements.
 Its `position` column stores each element's ordered request collection. Multiple
 affected elements remain possible; one request still describes only one DNS

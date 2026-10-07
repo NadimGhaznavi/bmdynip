@@ -75,7 +75,7 @@ class SchemaTests(unittest.TestCase):
             "ModelElement", "Namespace", "Package", "TaggedValue", "Machine",
             "SoftwareSystem", "Component", "DeployedComponent", "DataManager",
             "DataProvider", "ProviderConnection", "ChangeRequest",
-            "ModelElementChangeRequest", "DnsRecord", "ApplicationMigration",
+            "ModelElementChangeRequest", "DnsRecord",
         })
         self.assertEqual(self.query("SELECT COUNT(*) FROM ChangeRequest;"), "1")
 
