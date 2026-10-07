@@ -6,6 +6,8 @@ layout: single
 
 [Documentation index]({{ site.baseurl }}{% link index.md %})
 
+![Web Interface](/pages/images/bmdynip-web-interface.png)
+
 ## Open the interface
 
 Installation starts `bmdynip-web.service` on port `49700` and enables it at boot.
