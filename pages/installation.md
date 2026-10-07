@@ -28,6 +28,8 @@ Configure the GoDaddy CLI as root and verify that it can query your DNS records.
 
 BMDynIP uses root's configured GoDaddy authentication and inherited environment. It does not require or copy a separate PAT file.
 
+See my [Knowlege Base](https://kb.osoyalce.com/pages/godaddy-cli/) notes on setting up the GoDaddy PAT.
+
 ### MariaDB access
 
 For a new installation, root must be able to connect to the local MariaDB server using Unix socket authentication.
