@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-10-20 @ 18:56
+
+This release is named for the element **Hydrogen (H)**. Hydrogen is the most abundant element in the universe, hydrogen fuels the stars and accounts for roughly 75% of ordinary matter by mass.
+
+- Declare CMDB application, filesystem, database, and listener metadata, and use
+  these declarations for runtime defaults and installation.
+- Support validated Web UI listener overrides in `conf/bmdynip.json`, shared by
+  service startup and deployment readiness checks.
+
 ## [2.2.0] - 2026-10-08 @ 06:00
 
 ## [2.1.7] - 2026-10-07 @ 04:36

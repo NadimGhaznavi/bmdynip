@@ -4,12 +4,17 @@ from typing import Final
 
 
 class DBMDynIP:
-    VERSION: Final[str] = "2.2.0"
+    VERSION: Final[str] = "2.3.0"
+    CMDB_TYPE: Final[str] = "application"
     CMDB_SUBTYPE: Final[str] = "Dynamic DNS Service"
     CMDB_SUPPLIER: Final[str] = "Nadim-Daniel"
-    CMDB_CODENAME: Final[str] = "whale"
-    WEB_HOST: Final[str] = "0.0.0.0"
-    WEB_PORT: Final[int] = 49700
+    CMDB_CODENAME: Final[str] = "Hydrogen"
+    CMDB_COMPONENTS: Final[tuple[tuple[str, str], ...]] = (
+        ("Configuration", "conf"),
+        ("Saved state", "data"),
+    )
+    CMDB_DATABASES: Final[tuple[tuple[str, str], ...]] = (("BMDynIP", "bmdynip"),)
+    CMDB_NETWORK: Final[tuple[tuple[str, str, int], ...]] = (("http", "0.0.0.0", 49700),)
     WEB_REQUEST_TIMEOUT: Final[int] = 15
     WEB_READY_PATH: Final[str] = "/ready"
     WEB_RUNNER_TIMEOUT: Final[int] = 600
@@ -21,7 +26,6 @@ class DBMDynIP:
     ROOT_CREDENTIALS_FILE: Final[str] = "/root/.godaddy-cli"
     GODADDY_CREDENTIAL_NAME: Final[str] = ".godaddy-cli"
     DATABASE_ENV: Final[str] = "/etc/bmdynip/database.env"
-    DATABASE_NAME: Final[str] = "bmdynip"
     DATABASE_USER: Final[str] = "bmdynip"
     MARIADB: Final[str] = "/usr/bin/mariadb"
     IP_COMMAND: Final[str] = "/usr/sbin/ip"

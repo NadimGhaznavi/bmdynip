@@ -108,6 +108,45 @@ class UpgradeDeploymentTests(unittest.TestCase):
         self.assertEqual(web.read_bytes(), b"old executable")
         self.assertFalse(Path(DBMDynIP.CRON_FILE).exists())
 
+    def test_invalid_network_prevents_upgrade_and_restart_actions(self):
+        config = Path(DBMDynIP.INSTALL_DIR) / 'conf/bmdynip.json'
+        config.parent.mkdir(parents=True)
+        config.write_text('{"domain":"example.com","network":{"http":{"port":true}}}')
+        service = Path(DBMDynIP.WEB_SERVICE_FILE)
+        service.write_text('existing service')
+        for action in (installer.upgrade, installer.restart):
+            with self.subTest(action=action.__name__), self.assertRaisesRegex(ValueError, 'network.http.port'):
+                action()
+        self.control.assert_not_called()
+        self.database.assert_not_called()
+        self.dependencies.assert_not_called()
+        self.assertEqual(service.read_text(), 'existing service')
+
+    def test_listener_declaration_drives_install_and_overrides_survive_upgrade(self):
+        with patch.object(DBMDynIP, 'CMDB_NETWORK', (('http', '127.0.0.2', 19080),)):
+            installer.install()
+            config = Path(DBMDynIP.INSTALL_DIR) / 'conf/bmdynip.json'
+            self.assertIn('"interface": "127.0.0.2"', config.read_text())
+            self.assertIn('"port": 19080', config.read_text())
+            self.assertEqual(self.opener.open.call_args.args[0].full_url, 'http://127.0.0.2:19080/ready')
+            config.write_text('{"domain":"example.com","network":{"http":{"port":19090}}}')
+            original = config.read_bytes()
+            installer.upgrade()
+            installer.restart()
+        self.assertEqual(config.read_bytes(), original)
+        self.assertEqual(self.opener.open.call_args.args[0].full_url, 'http://127.0.0.2:19090/ready')
+        self.assertNotIn('--port', Path(DBMDynIP.WEB_SERVICE_FILE).read_text())
+
+    def test_restart_replaces_legacy_listener_arguments(self):
+        root = Path(DBMDynIP.INSTALL_DIR)
+        (root / 'conf').mkdir(parents=True)
+        (root / 'conf/bmdynip.json').write_text('{"domain":"example.com"}')
+        service = Path(DBMDynIP.WEB_SERVICE_FILE)
+        service.write_text(f'ExecStart={root}/bin/bmdynip-web --host 0.0.0.0 --port 49700\n')
+        installer.restart()
+        self.assertIn(f'ExecStart={root}/bin/bmdynip-web\n', service.read_text())
+        self.assertEqual(self.control.call_args_list[0], call('daemon-reload'))
+
     @staticmethod
     def stage_dependency(target):
         shutil.copytree(Path(pymysql.__file__).parent, target / "pymysql",
