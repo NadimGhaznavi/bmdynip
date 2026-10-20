@@ -10,6 +10,7 @@ from tempfile import NamedTemporaryFile
 from crontab import CronSlices, CronTab
 
 from bmdynip.constants.DBMDynIP import DBMDynIP
+from bmdynip.interface.Configuration import Configuration
 
 
 class RunnerSchedule:
@@ -17,7 +18,7 @@ class RunnerSchedule:
 
     def __init__(self, cron_file: Path | None = None, directory: Path | None = None):
         self.cron_file = Path(DBMDynIP.CRON_FILE) if cron_file is None else Path(cron_file)
-        self.directory = (Path(DBMDynIP.INSTALL_DIR) / "data"
+        self.directory = (Configuration.component("Saved state")
                           if directory is None else Path(directory))
 
     @staticmethod

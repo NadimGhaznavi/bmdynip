@@ -30,6 +30,8 @@ from bmdynip.interface.PublicIpService import PublicIpService
 from bmdynip.interface.StatusMessages import StatusMessages
 
 
+HTTP_HOST, HTTP_PORT = {use: (host, port) for use, host, port in DBMDynIP.CMDB_NETWORK}["http"]
+
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("bmdynip_installer", ROOT / "scripts/install.py")
 installer = importlib.util.module_from_spec(spec)
@@ -269,6 +271,11 @@ class InstallationTests(TemporaryFiles):
     def setUp(self):
         super().setUp()
         self.service = self.root / "bmdynip-web.service"
+        installed = patch.object(DBMDynIP, "INSTALL_DIR", str(self.root))
+        installed.start()
+        self.addCleanup(installed.stop)
+        (self.root / "conf").mkdir(exist_ok=True)
+        (self.root / "conf/bmdynip.json").write_text('{"domain":"example.com"}\n')
         service_patch = patch.object(DBMDynIP, "WEB_SERVICE_FILE", str(self.service))
         service_patch.start()
         self.addCleanup(service_patch.stop)
@@ -307,15 +314,16 @@ class InstallationTests(TemporaryFiles):
         with patch("sys.stdout", new=io.StringIO()) as output:
             installer.restart()
         self.assertEqual(self.systemctl.call_args_list, [
+            unittest.mock.call("daemon-reload"),
             unittest.mock.call("restart", self.service.name),
             unittest.mock.call("is-active", "--quiet", self.service.name),
         ])
         self.assertEqual(output.getvalue(),
-                         f"BMDynIP Web UI: active on port {DBMDynIP.WEB_PORT} "
-                         f"(listening on {DBMDynIP.WEB_HOST})\n")
+                         f"BMDynIP Web UI: active on port {HTTP_PORT} "
+                         f"(listening on {HTTP_HOST})\n")
         request = self.opener.open.call_args.args[0]
         self.assertEqual(request.full_url,
-                         f"http://127.0.0.1:{DBMDynIP.WEB_PORT}{DBMDynIP.WEB_READY_PATH}")
+                         f"http://127.0.0.1:{HTTP_PORT}{DBMDynIP.WEB_READY_PATH}")
         self.assertEqual(request.get_method(), "HEAD")
 
     def test_restart_failure_does_not_report_success(self):
@@ -330,7 +338,7 @@ class InstallationTests(TemporaryFiles):
         self.opener.open.side_effect = URLError("connection refused")
         with patch.object(installer.time, "monotonic", side_effect=[0, 11]), \
              patch("sys.stdout", new=io.StringIO()) as output:
-            with self.assertRaisesRegex(ValueError, f"port {DBMDynIP.WEB_PORT}"):
+            with self.assertRaisesRegex(ValueError, f"port {HTTP_PORT}"):
                 installer.restart()
         self.assertEqual(output.getvalue(), "")
 
@@ -495,7 +503,7 @@ class InstallationTests(TemporaryFiles):
             web_executable = install_root / "bin/bmdynip-web"
             self.assertEqual(web_executable.stat().st_mode & 0o777, 0o755)
             self.assertEqual(self.service.stat().st_mode & 0o777, 0o644)
-            self.assertIn(f"ExecStart={web_executable} --host {DBMDynIP.WEB_HOST} --port {DBMDynIP.WEB_PORT}",
+            self.assertIn(f"ExecStart={web_executable}\n",
                           self.service.read_text())
             self.systemctl.assert_any_call("enable", self.service.name)
             self.systemctl.assert_any_call("restart", self.service.name)

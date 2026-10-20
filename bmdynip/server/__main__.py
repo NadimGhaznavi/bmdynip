@@ -15,6 +15,7 @@ from pathlib import Path
 from bmdynip.constants.DBMDynIP import DBMDynIP
 from bmdynip.app.database import open_database
 from bmdynip.interface.Configuration import Configuration
+from bmdynip.interface.Network import Network
 from bmdynip.interface.DnsRecordDb import DnsRecordDb
 from bmdynip.interface.IpState import IpState
 from bmdynip.interface.UiDb import UiDb
@@ -214,20 +215,25 @@ class ControlHandler(BaseHTTPRequestHandler):
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--host", default=DBMDynIP.WEB_HOST)
-    parser.add_argument("--port", type=int, default=DBMDynIP.WEB_PORT)
+    parser.add_argument("--host")
+    parser.add_argument("--port", type=int)
     args = parser.parse_args()
-    if not 1 <= args.port <= 65535:
-        parser.error("--port must be between 1 and 65535.")
-    state_directory = Path(DBMDynIP.INSTALL_DIR) / 'data'
+    try:
+        host, port = Network().binding("http")
+        host = host if args.host is None else args.host
+        port = port if args.port is None else args.port
+        Network.validate(host, port, "command line")
+    except (OSError, ValueError) as error:
+        parser.error(str(error))
+    state_directory = Configuration.component("Saved state")
     messages = StatusMessages(state_directory / DBMDynIP.STATUS_MESSAGES_FILE)
-    with closing(RunnerProcess(messages)) as runner, ThreadingHTTPServer((args.host, args.port), ControlHandler) as server:
+    with closing(RunnerProcess(messages)) as runner, ThreadingHTTPServer((host, port), ControlHandler) as server:
         server.db_factory = open_database
-        server.domain = Configuration.domain(Path(DBMDynIP.INSTALL_DIR) / 'conf/bmdynip.json')
+        server.domain = Configuration.domain(Configuration.path())
         server.state_directory = state_directory
         server.runner_schedule = RunnerSchedule()
         server.start_runner = runner.start
-        print(f"BMDynIP Web UI: http://{args.host}:{server.server_port}/", flush=True)
+        print(f"BMDynIP Web UI: http://{host}:{server.server_port}/", flush=True)
         try:
             server.serve_forever()
         except KeyboardInterrupt:

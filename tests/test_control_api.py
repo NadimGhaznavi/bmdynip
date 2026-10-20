@@ -159,7 +159,7 @@ class LiveControlFixture(unittest.TestCase):
         self.database = name
         self.addCleanup(self.admin, f"DROP DATABASE IF EXISTS `{name}`; DROP USER IF EXISTS '{name}'@'localhost';")
         credentials = self.root / "config/database.env"
-        with patch.object(DBMDynIP, "DATABASE_NAME", name), \
+        with patch.object(DBMDynIP, "CMDB_DATABASES", (("BMDynIP", name),)), \
                 patch.object(DBMDynIP, "DATABASE_USER", name), \
                 patch.object(DatabaseProvisioning, "_require_root"):
             DatabaseProvisioning(ROOT / "schema/bmdynip-schema-v1.sql", credentials, self.socket).provision()

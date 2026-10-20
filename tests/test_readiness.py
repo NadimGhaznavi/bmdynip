@@ -133,7 +133,7 @@ class LiveReadinessTests(LiveControlFixture):
                 checks += 1
                 if checks == 2:
                     self.server.db_failure = False
-        with patch.object(DBMDynIP, 'WEB_PORT', self.server.server_port), \
+        with patch.object(DBMDynIP, 'CMDB_NETWORK', (('http', '127.0.0.1', self.server.server_port),)), \
                 patch.object(installer, 'systemctl', side_effect=systemctl), \
                 patch('sys.stdout', new=io.StringIO()) as output:
             installer.start_web('start')

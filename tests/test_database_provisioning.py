@@ -149,7 +149,7 @@ class ProvisioningTests(unittest.TestCase):
         for database, user in (("bmdynip`; DROP DATABASE other", "bmdynip"),
                                ("bmdynip", "root"), ("mysql", "bmdynip")):
             with self.subTest(database=database, user=user), \
-                    patch.object(DBMDynIP, "DATABASE_NAME", database), \
+                    patch.object(DBMDynIP, "CMDB_DATABASES", (("BMDynIP", database),)), \
                     patch.object(DBMDynIP, "DATABASE_USER", user), self.assertRaises(ValueError):
                 self.provisioner.provision()
         self.run.assert_not_called()
@@ -201,7 +201,7 @@ class ProvisioningIntegrationTests(unittest.TestCase):
         suffix = uuid4().hex[:12]
         self.database = "bmdynip_test_" + suffix
         self.user = "bmdynip_test_" + suffix
-        for name, value in (("DATABASE_NAME", self.database), ("DATABASE_USER", self.user)):
+        for name, value in (("CMDB_DATABASES", (("BMDynIP", self.database),)), ("DATABASE_USER", self.user)):
             constant = patch.object(DBMDynIP, name, value)
             constant.start()
             self.addCleanup(constant.stop)
