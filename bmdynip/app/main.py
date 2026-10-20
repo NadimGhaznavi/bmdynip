@@ -2,7 +2,6 @@
 
 import argparse
 import os
-from pathlib import Path
 import subprocess
 import sys
 
@@ -10,6 +9,7 @@ from bmdynip.activity.UpdatePublicIp import UpdatePublicIp
 from bmdynip.activity.DiscoveryCoordinator import DiscoveryCoordinator
 from bmdynip.app.database import open_database
 from bmdynip.constants.DBMDynIP import DBMDynIP
+from bmdynip.interface.Configuration import Configuration
 from bmdynip.interface.GoDaddyCli import GoDaddyCli
 from bmdynip.interface.IpState import IpState
 from bmdynip.interface.PublicIpService import PublicIpService
@@ -27,9 +27,8 @@ def main() -> int:
         print("BMDynIP must run as root.", file=sys.stderr)
         return 1
     os.umask(0o077)
-    root = Path(DBMDynIP.INSTALL_DIR)
-    state = IpState(root / "data")
-    messages = StatusMessages(root / 'data' / DBMDynIP.STATUS_MESSAGES_FILE)
+    state = IpState(Configuration.component("Saved state"))
+    messages = StatusMessages(Configuration.component("Saved state") / DBMDynIP.STATUS_MESSAGES_FILE)
     try:
         with state.lock() as acquired:
             if not acquired:

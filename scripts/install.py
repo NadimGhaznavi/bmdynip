@@ -1,6 +1,7 @@
 """Install, restart, or remove BMDynIP's updater and Web UI service."""
 
 import argparse
+import json
 import os
 from pathlib import Path
 import shutil
@@ -18,6 +19,7 @@ sys.path.insert(0, str(REPOSITORY))
 
 from bmdynip.constants.DBMDynIP import DBMDynIP
 from bmdynip.interface.Configuration import Configuration
+from bmdynip.interface.Network import Network
 from bmdynip.interface.IpState import IpState
 from bmdynip.interface.DatabaseProvisioning import DatabaseProvisioning
 
@@ -26,10 +28,13 @@ def systemctl(*arguments: str) -> None:
     subprocess.run([DBMDynIP.SYSTEMCTL, *arguments], check=True, timeout=30)
 
 
-def start_web(action: str) -> None:
+def start_web(action: str, network: Network | None = None) -> None:
+    network = Network() if network is None else network
+    host, port = network.binding("http")
+    destination, _ = network.destination("http")
     service = Path(DBMDynIP.WEB_SERVICE_FILE).name
     systemctl(action, service)
-    url = f"http://127.0.0.1:{DBMDynIP.WEB_PORT}{DBMDynIP.WEB_READY_PATH}"
+    url = f"http://{destination}:{port}{DBMDynIP.WEB_READY_PATH}"
     opener = build_opener(ProxyHandler({}))
     deadline = time.monotonic() + 10
     while True:
@@ -37,7 +42,7 @@ def start_web(action: str) -> None:
             systemctl("is-active", "--quiet", service)
             with opener.open(Request(url, method="HEAD"), timeout=1) as response:
                 if response.status != 200:
-                    raise ValueError(f"Web UI returned HTTP {response.status} on port {DBMDynIP.WEB_PORT}.")
+                    raise ValueError(f"Web UI returned HTTP {response.status} on port {port}.")
             break
         except subprocess.CalledProcessError as error:
             if error.returncode != 3:
@@ -51,22 +56,37 @@ def start_web(action: str) -> None:
             error.close()
             if status != 503:
                 raise ValueError(f"Web UI readiness returned HTTP {status} on port "
-                                 f"{DBMDynIP.WEB_PORT}; check journalctl -u {service}.") from None
+                                 f"{port}; check journalctl -u {service}.") from None
             if time.monotonic() >= deadline:
-                raise ValueError(f"Web UI database readiness timed out on port {DBMDynIP.WEB_PORT}; "
+                raise ValueError(f"Web UI database readiness timed out on port {port}; "
                                  f"check database availability, credentials, and schema, and "
                                  f"journalctl -u {service}.") from None
             time.sleep(0.1)
         except (URLError, TimeoutError):
             if time.monotonic() >= deadline:
-                raise ValueError(f"Web UI readiness did not respond on port {DBMDynIP.WEB_PORT}; "
+                raise ValueError(f"Web UI readiness did not respond on port {port}; "
                                  f"check journalctl -u {service}.") from None
             time.sleep(0.1)
-    print(f"BMDynIP Web UI: active on port {DBMDynIP.WEB_PORT} (listening on {DBMDynIP.WEB_HOST})")
+    print(f"BMDynIP Web UI: active on port {port} (listening on {host})")
+
+
+def write_web_service() -> Path:
+    service = Path(DBMDynIP.WEB_SERVICE_FILE)
+    service.write_text(
+        "[Unit]\nDescription=BMDynIP Web UI\nAfter=network.target\n\n"
+        "[Service]\nType=exec\nUser=root\n"
+        f"ExecStart={DBMDynIP.INSTALL_DIR}/bin/bmdynip-web\n"
+        "Restart=on-failure\nRestartSec=2\n\n[Install]\nWantedBy=multi-user.target\n")
+    service.chmod(0o644)
+    return service
 
 
 def restart() -> None:
-    start_web("restart")
+    network = Network()
+    Configuration.domain(Configuration.path())
+    write_web_service()
+    systemctl("daemon-reload")
+    start_web("restart", network)
 
 
 def install_dependencies(target: Path) -> None:
@@ -87,16 +107,24 @@ def install(*, upgrading: bool = False) -> None:
         if not os.access(executable, os.X_OK):
             raise ValueError(f"Required executable is missing: {executable}")
     root = Path(DBMDynIP.INSTALL_DIR)
-    config = root / "conf" / "bmdynip.json"
-    Configuration.domain(config if config.exists() else REPOSITORY / "conf" / "bmdynip.json")
+    config = Configuration.path()
+    source_config = config if config.exists() else REPOSITORY / "conf" / "bmdynip.json"
+    Configuration.domain(source_config)
+    network = Network(source_config)
     DatabaseProvisioning(REPOSITORY / "schema/bmdynip-schema-v1.sql").provision()
-    for name in ("bin", "conf", "data"):
-        (root / name).mkdir(parents=True, exist_ok=True)
-        (root / name).chmod(0o700 if name != "bin" else 0o755)
+    (root / "bin").mkdir(parents=True, exist_ok=True)
+    (root / "bin").chmod(0o755)
+    for name, _ in DBMDynIP.CMDB_COMPONENTS:
+        directory = Configuration.component(name)
+        directory.mkdir(parents=True, exist_ok=True)
+        directory.chmod(0o700)
     root.chmod(0o755)
-    with IpState(root / "data").lock(blocking=True):
+    with IpState(Configuration.component("Saved state")).lock(blocking=True):
         if not config.exists():
-            shutil.copyfile(REPOSITORY / "conf" / "bmdynip.json", config)
+            values = Configuration.read(source_config)
+            values["network"] = {use: {"interface": host, "port": port}
+                                 for use, (host, port) in network.bindings.items()}
+            config.write_text(json.dumps(values, indent=2) + "\n")
         config.chmod(0o600)
         with tempfile.TemporaryDirectory(prefix="bmdynip-install-") as staging:
             staged = Path(staging)
@@ -145,19 +173,10 @@ def install(*, upgrading: bool = False) -> None:
                 schedule = RunnerSchedule().install()
             finally:
                 sys.path.remove(str(staged))
-    service = Path(DBMDynIP.WEB_SERVICE_FILE)
-    service.write_text(
-        "[Unit]\nDescription=BMDynIP Web UI\nAfter=network.target\n\n"
-        "[Service]\nType=exec\nUser=root\n"
-        f"ExecStart={root}/bin/bmdynip-web --host {DBMDynIP.WEB_HOST} --port {DBMDynIP.WEB_PORT}\n"
-        "Restart=on-failure\nRestartSec=2\n\n[Install]\nWantedBy=multi-user.target\n")
-    service.chmod(0o644)
+    service = write_web_service()
     systemctl("daemon-reload")
     systemctl("enable", service.name)
-    if upgrading:
-        start_web("start")
-    else:
-        restart()
+    start_web("start" if upgrading else "restart", network)
     print(f"Installed BMDynIP {DBMDynIP.VERSION}; runner schedule: "
           f"{'enabled' if schedule['enabled'] else 'disabled'}; {schedule['expression']}.")
     print(f"Manage DNS names in the Web UI. Existing configuration and data were preserved.")
@@ -175,8 +194,8 @@ def uninstall() -> None:
         service.unlink()
         systemctl("daemon-reload")
     Path(DBMDynIP.CRON_FILE).unlink(missing_ok=True)
-    if (root / "data").is_dir():
-        with IpState(root / "data").lock(blocking=True):
+    if Configuration.component("Saved state").is_dir():
+        with IpState(Configuration.component("Saved state")).lock(blocking=True):
             (root / "bin" / "bmdynip").unlink(missing_ok=True)
     else:
         (root / "bin" / "bmdynip").unlink(missing_ok=True)
