@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.1] - 2026-10-28 @ 04:59
+
+- Updated readme.
+
 ## [2.3.0] - 2026-10-20 @ 18:56
 
 This release is named for the element **Hydrogen (H)**. Hydrogen is the most abundant element in the universe, hydrogen fuels the stars and accounts for roughly 75% of ordinary matter by mass.
