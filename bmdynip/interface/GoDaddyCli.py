@@ -1,6 +1,5 @@
-"""Dispatch ordered DNS commands without waiting for gddy completion."""
+"""Run ordered DNS commands and require successful gddy completion."""
 
-import shlex
 import subprocess
 
 from bmdynip.constants.DBMDynIP import DBMDynIP
@@ -13,7 +12,7 @@ class GoDaddyCli:
                   "--env", "prod", "--timeout", "60s"]
         delete = [DBMDynIP.GODADDY_CLI, "dns", "delete", *common]
         add = [DBMDynIP.GODADDY_CLI, "dns", "add", *common, "--data", str(record.address)]
-        # One detached shell preserves delete-before-add ordering. Output stays
-        # with the service log; the parent records submission, not DNS confirmation.
-        subprocess.Popen([DBMDynIP.DNS_SHELL, "-c", shlex.join(delete) + " && " + shlex.join(add)],
-                         stdin=subprocess.DEVNULL, start_new_session=True)
+        # The runner already runs separately from the Web UI. Finish each command
+        # before saving submission state; failures must remain eligible for retry.
+        for command in (delete, add):
+            subprocess.run(command, stdin=subprocess.DEVNULL, check=True, timeout=65)

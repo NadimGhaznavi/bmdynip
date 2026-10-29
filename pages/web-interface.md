@@ -36,8 +36,9 @@ Enter a single label, such as `wintermute`, and click **Add hostname**.
 Nested names and the apex (`@`) are not supported.
 
 Saving a hostname stores it in MariaDB and starts the installed runner
-immediately. The runner dispatches ordered DNS delete/add commands without
-waiting for them to complete. The submitted address appears on the next refresh.
+immediately. The runner waits for ordered DNS delete/add commands to finish
+successfully before saving the submitted address. The Web UI remains available
+while the runner works.
 
 If the runner cannot start, the hostname remains saved for the next scheduled
 or manual run, and the interface shows an error.
@@ -108,8 +109,8 @@ Installation, upgrades, and restarts wait up to ten seconds for readiness.
 If the database is unavailable, the interface displays an error and disables
 hostname changes until status can be refreshed.
 
-Runner launch failures appear in status messages. Detached `gddy` commands
-write their output to the service log. View the log with:
+Runner launch failures and DNS command failures appear in status messages.
+The `gddy` commands write their output to the service log. View the log with:
 
 ```sh
 journalctl -u bmdynip-web.service

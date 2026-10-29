@@ -129,11 +129,64 @@ class FlowTests(TemporaryFiles):
         self.activity.dns = GoDaddyCli()
         self.state.save(IPv4Address('1.1.1.1'), RECORDS)
         saved = self.state.path.read_bytes()
-        with patch('subprocess.Popen', side_effect=OSError('cannot launch DNS shell')):
-            with self.assertRaisesRegex(OSError, 'cannot launch DNS shell'):
+        with patch('subprocess.run', side_effect=OSError('cannot launch gddy')):
+            with self.assertRaisesRegex(OSError, 'cannot launch gddy'):
                 self.activity.run(RECORDS)
         self.assertEqual(self.state.path.read_bytes(), saved)
-        self.assertIn('cannot launch DNS shell', self.messages.snapshot()[-1]['message'])
+        self.assertIn('cannot launch gddy', self.messages.snapshot()[-1]['message'])
+
+    def test_cli_failure_preserves_saved_state_and_retries(self):
+        executable = self.root / 'gddy'
+        failure = self.root / 'failure'
+        events = self.root / 'events'
+        executable.write_text(f'''#!/usr/bin/python3
+from pathlib import Path
+import sys
+operation = sys.argv[2]
+with Path({str(events)!r}).open('a') as stream:
+    stream.write(operation + '\\n')
+failure = Path({str(failure)!r})
+if failure.exists() and failure.read_text() == operation:
+    raise SystemExit(7)
+''')
+        executable.chmod(0o700)
+        self.activity.dns = GoDaddyCli()
+        self.activity.audit = Mock()
+        for operation in ('delete', 'add'):
+            with self.subTest(operation=operation):
+                self.activity.audit.reset_mock()
+                self.state.save(IPv4Address('1.1.1.1'), RECORDS)
+                saved = self.state.path.read_bytes()
+                failure.write_text(operation)
+                events.unlink(missing_ok=True)
+                with patch.object(DBMDynIP, 'GODADDY_CLI', str(executable)):
+                    with self.assertRaises(subprocess.CalledProcessError) as caught:
+                        self.activity.run(RECORDS)
+                    self.assertEqual(caught.exception.returncode, 7)
+                    self.assertEqual(self.state.path.read_bytes(), saved)
+                    self.activity.audit.failed.assert_called_once()
+                    self.activity.audit.submitted.assert_not_called()
+                    self.activity.audit.applied.assert_not_called()
+                    self.assertIn('saved state is preserved for retry',
+                                  self.messages.snapshot()[-1]['message'])
+                    failed_events = ['delete'] if operation == 'delete' else ['delete', 'add']
+                    self.assertEqual(events.read_text().splitlines(), failed_events)
+                    failure.unlink()
+                    with patch('sys.stdout', new=io.StringIO()):
+                        self.assertTrue(self.activity.run(RECORDS))
+                self.assertTrue(self.state.is_current(IP, RECORDS))
+                self.assertEqual(events.read_text().splitlines(), failed_events + ['delete', 'add'])
+                self.activity.audit.submitted.assert_called_once()
+                self.activity.audit.applied.assert_called_once()
+
+    def test_cli_timeout_preserves_saved_state(self):
+        self.activity.dns = GoDaddyCli()
+        self.state.save(IPv4Address('1.1.1.1'), RECORDS)
+        saved = self.state.path.read_bytes()
+        with patch('subprocess.run', side_effect=subprocess.TimeoutExpired('gddy', 65)):
+            with self.assertRaises(subprocess.TimeoutExpired):
+                self.activity.run(RECORDS)
+        self.assertEqual(self.state.path.read_bytes(), saved)
 
     def test_empty_configuration_does_nothing(self):
         self.assertFalse(self.activity.run(()))
@@ -190,21 +243,20 @@ class BoundaryTests(TemporaryFiles):
         with self.assertRaises(ValueError):
             Credentials.load(path)
 
-    def test_godaddy_dispatch_does_not_wait_or_capture_output(self):
-        with patch('subprocess.Popen') as launch:
+    def test_godaddy_commands_complete_with_timeouts_and_inherited_output(self):
+        with patch('subprocess.run') as run:
             GoDaddyCli().replace(DnsRecord('example.com', 'api', IP))
-        command = launch.call_args.args[0]
-        self.assertEqual(command[:2], [DBMDynIP.DNS_SHELL, '-c'])
-        self.assertIn('dns delete', command[2])
-        self.assertIn(' && ', command[2])
-        self.assertIn('dns add', command[2])
-        self.assertIn('--data 8.8.8.8', command[2])
-        self.assertEqual(launch.call_args.kwargs,
-                         {'stdin': subprocess.DEVNULL, 'start_new_session': True})
-        launch.return_value.wait.assert_not_called()
-        launch.return_value.communicate.assert_not_called()
+        self.assertEqual(run.call_count, 2)
+        common = ['example.com', '--type', 'A', '--name', 'api',
+                  '--env', 'prod', '--timeout', '60s']
+        self.assertEqual(run.call_args_list[0].args[0],
+                         [DBMDynIP.GODADDY_CLI, 'dns', 'delete', *common])
+        self.assertEqual(run.call_args_list[1].args[0],
+                         [DBMDynIP.GODADDY_CLI, 'dns', 'add', *common, '--data', str(IP)])
+        for call in run.call_args_list:
+            self.assertEqual(call.kwargs, {'stdin': subprocess.DEVNULL, 'check': True, 'timeout': 65})
 
-    def test_detached_commands_run_in_order_with_inherited_authentication(self):
+    def test_commands_run_in_order_with_inherited_authentication(self):
         executable = self.root / 'gddy'
         release = self.root / 'release-delete'
         events = self.root / 'events'
@@ -226,20 +278,21 @@ if sys.argv[2] == 'delete':
         time.sleep(0.01)
 ''')
         executable.chmod(0o700)
-        children = []
-        original = subprocess.Popen
-        def launch(*args, **kwargs):
-            child = original(*args, **kwargs)
-            children.append(child)
-            return child
-        # No valid JSON is emitted, and delete cannot finish until after replace returns.
         with patch.object(DBMDynIP, 'GODADDY_CLI', str(executable)), \
                 patch.dict(os.environ, {'GDDY_PAT_PROD': 'gd_pat_working'}), \
-                patch('subprocess.Popen', side_effect=launch):
-            GoDaddyCli().replace(DnsRecord('example.com', 'api', IP))
-        self.assertIsNone(children[0].poll())
-        release.touch()
-        self.assertEqual(children[0].wait(timeout=6), 0)
+                ThreadPoolExecutor(max_workers=1) as executor:
+            completed = executor.submit(GoDaddyCli().replace, DnsRecord('example.com', 'api', IP))
+            try:
+                deadline = time.monotonic() + 4
+                while not events.exists() or not events.read_text().strip():
+                    if time.monotonic() >= deadline:
+                        self.fail('Delete command did not start')
+                    time.sleep(0.01)
+                self.assertFalse(completed.done())
+                self.assertEqual(events.read_text().splitlines(), ['delete'])
+            finally:
+                release.touch()
+            completed.result(timeout=6)
         self.assertEqual(events.read_text().splitlines(), ['delete', 'add'])
 
     def test_cli_uses_database_records_and_failure_exit(self):
@@ -258,7 +311,7 @@ if sys.argv[2] == 'delete':
              patch.object(Credentials, "load", side_effect=AssertionError("Runtime must use gddy authentication")), \
              patch("sys.argv", ["bmdynip"]), patch("sys.stdout", new=io.StringIO()), \
              patch("sys.stderr", new=io.StringIO()):
-            with patch("subprocess.run", side_effect=outputs), patch("subprocess.Popen"):
+            with patch("subprocess.run", side_effect=outputs):
                 self.assertEqual(main(), 0)
             saved = (self.root / "data/state.json").read_bytes()
             with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("curl", 25)):
