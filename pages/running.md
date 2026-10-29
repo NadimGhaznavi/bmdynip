@@ -42,21 +42,21 @@ address without changing DNS.
 
 ## DNS updates and retries
 
-DNS commands run in detached processes. For each managed hostname, the command
+The runner waits for each DNS command to finish. For each managed hostname, it
 deletes all A records at that name, then adds one with the submitted address
-if deletion succeeds.
+if deletion succeeds. Commands run sequentially with a 60-second CLI timeout
+and a 65-second process timeout.
 
-The runner saves the IP and hostname list after launching all commands.
-It does not wait for completion or parse their output. The saved state therefore
-records what was submitted, rather than confirming that DNS was updated.
+The runner saves the IP and hostname list after all commands exit successfully.
 
 The Web UI displays the submitted address and last submission time. Its status
 column independently checks DNS on page load and every refresh.
 DNS caching can delay visible changes.
 
-A command launch failure causes the runner to exit with a nonzero status and
-retain the previous saved state for retry. Failures after launch are written
-to the service log or cron output.
+A failed or timed-out command causes the runner to exit with a nonzero status
+and retain the previous saved state for retry. Failures appear in status messages
+and the service log or cron output. GoDaddy authentication must work unattended
+for root; an interactive login cannot complete in the runner.
 
 An add failure can leave a hostname without an A record until a retry succeeds.
 Updates to multiple hostnames are not atomic.

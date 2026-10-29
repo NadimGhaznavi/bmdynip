@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+This release is named for the element **Gold (Au)**. Gold is so malleable that 
+a single gram can be hammered into a sheet covering roughly a square meter.
+
+### Fixed
+
+- Retry failed or timed-out GoDaddy DNS commands instead of saving them as
+  submitted. Run commands sequentially and report failures in status messages.
+
 ## [2.3.1] - 2026-10-28 @ 04:59
 
 - Updated readme.
