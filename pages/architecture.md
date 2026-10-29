@@ -39,20 +39,19 @@ requests pass through the router using its public IPv4 address.
    or disagreement prevent DNS changes.
 3. The updater reads the managed hostnames from MariaDB and compares the public
    IP and hostname list with its saved state.
-4. When an update is needed, it launches detached `gddy` commands. For each
-   hostname, the command deletes all A records at that name, then creates one
-   with the submitted address if deletion succeeds.
-5. After launching all commands, the updater saves the submitted IP and
-   hostname list in `/opt/prod/bmdynip/data/state.json`. It does not wait for
-   the detached commands to finish or parse their output.
+4. When an update is needed, it runs `gddy` commands in order. For each
+   hostname, it deletes all A records at that name, then creates one with the
+   submitted address if deletion succeeds. Each command must finish successfully.
+5. After all commands succeed, the updater saves the submitted IP and hostname
+   list in `/opt/prod/bmdynip/data/state.json`. A failed or timed-out command
+   preserves the previous state so the next run retries.
 
 With no managed hostnames, the updater still records the observed public IPv4
 address and makes no DNS changes.
 
-The saved state records what was submitted. It does not confirm that GoDaddy
-applied the changes. The Web UI separately checks each hostname through the
-server's DNS resolver on page load and every five seconds. DNS caching can
-delay visible changes.
+The saved state records successful CLI submissions. The Web UI checks each
+hostname through the server's DNS resolver on page load and every five seconds.
+DNS caching can delay visible changes.
 
 ## DNS and access to hosted services
 
