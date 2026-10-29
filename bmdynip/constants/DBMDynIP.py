@@ -4,11 +4,11 @@ from typing import Final
 
 
 class DBMDynIP:
-    VERSION: Final[str] = "2.3.1"
+    VERSION: Final[str] = "2.3.2"
     CMDB_TYPE: Final[str] = "application"
     CMDB_SUBTYPE: Final[str] = "Dynamic DNS Service"
     CMDB_SUPPLIER: Final[str] = "Nadim-Daniel"
-    CMDB_CODENAME: Final[str] = "Erbium"
+    CMDB_CODENAME: Final[str] = "Gold"
     CMDB_COMPONENTS: Final[tuple[tuple[str, str], ...]] = (
         ("Configuration", "conf"),
         ("Saved state", "data"),

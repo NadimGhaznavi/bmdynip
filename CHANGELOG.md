@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.2] - 2026-10-29 @ 18:47
+
 This release is named for the element **Gold (Au)**. Gold is so malleable that 
 a single gram can be hammered into a sheet covering roughly a square meter.
 
