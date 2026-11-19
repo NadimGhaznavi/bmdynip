@@ -1,15 +1,15 @@
 {
   "branch": "main",
-  "manager_sha256": "0adce54d50c5d55b23e592f2e32248add52706c2ab575760e1083057a2af2bef",
+  "manager_sha256": "3a0f6ca69dc885e3a6f0baa96f9c124936e77b687640ac1e977d42a772849375",
   "mode": "attached",
   "repository": "/home/dan/.cache/bmforge-upstream",
   "schema": 1,
   "skills": {
     "bmforge-rca": {
-      "sha256": "b1546ecb62bd8f3cbfa796e92e5fce5a752800aaa43cb45806780b8486cc6de8",
-      "source_commit": "7817daa5bdec5e3f562b73510bec6a13afccbaa6",
+      "sha256": "e60de33b48096adc2d0e717ec91f106ae5c0fbae259e24bea3f442829f0a88ce",
+      "source_commit": "7554b12a17332876f69d845fa752c4945cf6a3a0",
       "spec_version": "0.1.0"
     }
   },
-  "source_commit": "7817daa5bdec5e3f562b73510bec6a13afccbaa6"
+  "source_commit": "7554b12a17332876f69d845fa752c4945cf6a3a0"
 }
